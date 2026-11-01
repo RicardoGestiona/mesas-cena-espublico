@@ -110,7 +110,7 @@ function Result({ table, tablemates, onBack }: { table: number; tablemates: Tabl
   }, []);
 
   return (
-    <section aria-live="polite" className="flex flex-col gap-8">
+    <section aria-live="polite" className="mx-auto flex w-full max-w-md flex-col gap-8 landscape:max-w-4xl">
       <Button
         type="button"
         variant="link"
@@ -121,30 +121,33 @@ function Result({ table, tablemates, onBack }: { table: number; tablemates: Tabl
         Buscar otro email
       </Button>
 
-      <header className="flex flex-col items-center text-center animate-in fade-in slide-in-from-bottom-3 duration-700 motion-reduce:animate-none">
-        <p className="text-[15px] font-medium text-muted-foreground">Tu mesa</p>
-        <h1
-          ref={headingRef}
-          tabIndex={-1}
-          className="font-heading text-[8.5rem] leading-none font-semibold tracking-[-0.06em] tabular-nums outline-none"
-        >
-          <span className="sr-only">Mesa </span>
-          {table}
-        </h1>
-        <p className="mt-3 text-[15px] text-muted-foreground">
-          Fila {row + 1} desde el escenario <span aria-hidden>·</span> {col + 1}ª desde la izquierda
-        </p>
-      </header>
+      {/* Portrait: stacked. Landscape: plan on the left, table number + tablemates on the right. */}
+      <div className="flex flex-col gap-8 landscape:grid landscape:grid-cols-2 landscape:grid-rows-[auto_1fr] landscape:items-start landscape:gap-x-8 landscape:gap-y-6">
+        <header className="flex flex-col items-center text-center landscape:col-start-2 landscape:row-start-1 animate-in fade-in slide-in-from-bottom-3 duration-700 motion-reduce:animate-none">
+          <p className="text-[15px] font-medium text-muted-foreground">Tu mesa</p>
+          <h1
+            ref={headingRef}
+            tabIndex={-1}
+            className="font-heading text-[8.5rem] leading-none landscape:text-[6.5rem] font-semibold tracking-[-0.06em] tabular-nums outline-none"
+          >
+            <span className="sr-only">Mesa </span>
+            {table}
+          </h1>
+          <p className="mt-3 text-[15px] text-muted-foreground">
+            Fila {row + 1} desde el escenario <span aria-hidden>·</span> {col + 1}ª desde la izquierda
+          </p>
+        </header>
 
-      <section className="animate-in fade-in slide-in-from-bottom-3 fill-mode-both delay-150 duration-700 motion-reduce:animate-none">
-        <SectionHeader title="Cómo llegar" />
-        <Card className="rounded-2xl p-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)] ring-0">
-          <FloorPlan highlightedTable={table} />
-        </Card>
-      </section>
+        <section className="landscape:col-start-1 landscape:row-span-2 landscape:row-start-1 animate-in fade-in slide-in-from-bottom-3 fill-mode-both delay-150 duration-700 motion-reduce:animate-none">
+          <SectionHeader title="Cómo llegar" />
+          <Card className="rounded-2xl p-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)] ring-0">
+            <FloorPlan highlightedTable={table} />
+          </Card>
+        </section>
 
-      <div className="animate-in fade-in slide-in-from-bottom-3 fill-mode-both delay-300 duration-700 motion-reduce:animate-none">
-        <TablemateList tablemates={tablemates} />
+        <div className="landscape:col-start-2 landscape:row-start-2 animate-in fade-in slide-in-from-bottom-3 fill-mode-both delay-300 duration-700 motion-reduce:animate-none">
+          <TablemateList tablemates={tablemates} />
+        </div>
       </div>
     </section>
   );
@@ -196,7 +199,7 @@ export function SeatFinder() {
   const hasError = state.kind === "message";
 
   return (
-    <div className="flex flex-1 flex-col animate-in fade-in duration-500 motion-reduce:animate-none">
+    <div className="mx-auto flex w-full max-w-md flex-1 flex-col animate-in fade-in duration-500 motion-reduce:animate-none">
       <header className="flex flex-col items-center gap-3 pt-[12vh] text-center">
         <p className="text-[15px] font-medium text-muted-foreground">Cena de empresa</p>
         <h1 className="font-heading text-[2.5rem] leading-[1.05] font-semibold tracking-[-0.025em]">
