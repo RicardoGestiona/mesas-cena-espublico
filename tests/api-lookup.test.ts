@@ -39,7 +39,8 @@ describe("POST /api/lookup", () => {
   it("returns only status and table for a known attendee", async () => {
     const response = await POST(request(json({ email: LUCIA })));
     expect(response.status).toBe(200);
-    expect(await response.json()).toStrictEqual({ status: "found", table: 7 });
+    // SAMPLE_CSV puts Lucía alone at table 7.
+    expect(await response.json()).toStrictEqual({ status: "found", table: 7, tablemates: [] });
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 

@@ -3,37 +3,43 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { Redis } from "@upstash/redis";
 import { redisClient, serverEnv } from "./env";
-import { HashedSeatingFileSchema, SEATING_HASH_KEY, TableValue } from "./seating-format";
+import { logger } from "./logger";
+import { HashedSeatingFileSchema, SEATING_HASH_KEY, StoredSeatEntrySchema, type SeatEntry } from "./seating-format";
 
 export interface SeatingRepository {
-  findTable(emailHmac: string): Promise<number | null>;
+  /** Single store read. Returns null when unknown or when the stored record is corrupt. */
+  findSeat(emailHmac: string): Promise<SeatEntry | null>;
 }
 
 class RedisSeatingRepository implements SeatingRepository {
   constructor(private readonly redis: Redis) {}
 
-  async findTable(emailHmac: string): Promise<number | null> {
-    const value = await this.redis.hget<string | number>(SEATING_HASH_KEY, emailHmac);
+  async findSeat(emailHmac: string): Promise<SeatEntry | null> {
+    const value = await this.redis.hget<unknown>(SEATING_HASH_KEY, emailHmac);
     if (value === null || value === undefined) return null;
-    const parsed = TableValue.safeParse(value);
-    return parsed.success ? parsed.data : null;
+    const parsed = StoredSeatEntrySchema.safeParse(value);
+    if (!parsed.success) {
+      logger.error("seating.corrupt_record");
+      return null;
+    }
+    return parsed.data;
   }
 }
 
 /** Local development only: reads the hashed file produced by `npm run seating:import`. */
 class MemorySeatingRepository implements SeatingRepository {
-  private data: Promise<Record<string, number>> | undefined;
+  private data: Promise<Record<string, SeatEntry>> | undefined;
 
   constructor(private readonly filePath: string) {}
 
-  private load(): Promise<Record<string, number>> {
+  private load(): Promise<Record<string, SeatEntry>> {
     this.data ??= readFile(path.resolve(/*turbopackIgnore: true*/ process.cwd(), this.filePath), "utf8").then((raw) =>
       HashedSeatingFileSchema.parse(JSON.parse(raw)),
     );
     return this.data;
   }
 
-  async findTable(emailHmac: string): Promise<number | null> {
+  async findSeat(emailHmac: string): Promise<SeatEntry | null> {
     const data = await this.load();
     return Object.hasOwn(data, emailHmac) ? data[emailHmac] : null;
   }

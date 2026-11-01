@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { SEATING_HASH_KEY } from "@/server/seating-format";
+import { SEATING_HASH_KEY, StoredSeatEntrySchema, type SeatEntry } from "@/server/seating-format";
 import { ImportError, sampleProbes, type Probe } from "@/server/seating-import";
 import {
   PREVIOUS_KEY,
@@ -12,7 +12,7 @@ import { csv } from "./helpers";
 
 /** In-memory Redis subset with real semantics: RENAME overwrites, fails on missing source, keeps TTL. */
 class FakeRedis implements SeatingStoreAdmin {
-  readonly hashes = new Map<string, Map<string, number>>();
+  readonly hashes = new Map<string, Map<string, string>>();
   readonly ttl = new Map<string, number>();
   /** Snapshots of the live key after every mutation, to prove it is never missing mid-swap. */
   readonly liveHistory: (number | null)[] = [];
@@ -29,8 +29,8 @@ class FakeRedis implements SeatingStoreAdmin {
     this.ttl.delete(key);
     this.record();
   }
-  async hset(key: string, fields: Record<string, number>) {
-    const hash = this.hashes.get(key) ?? new Map<string, number>();
+  async hset(key: string, fields: Record<string, string>) {
+    const hash = this.hashes.get(key) ?? new Map<string, string>();
     for (const [field, value] of Object.entries(fields)) hash.set(field, value);
     this.hashes.set(key, hash);
   }
@@ -52,14 +52,19 @@ class FakeRedis implements SeatingStoreAdmin {
 }
 
 const EXPIRE = 2_000_000_000;
-const PROBES: Probe[] = [{ email: "a@nexodigital.example", table: 1 }];
-const NEW = new Map(Array.from({ length: 450 }, (_, i) => [`${i}`.padStart(64, "0"), (i % 50) + 1] as const));
+const PROBES: Probe[] = [{ email: "a@nexodigital.example", table: 1, tablemates: 0 }];
+const NEW = new Map<string, SeatEntry>(
+  Array.from({ length: 450 }, (_, i) => [
+    `${i}`.padStart(64, "0"),
+    { table: (i % 50) + 1, tablemates: [{ name: `Persona ${i}`, company: "Nexo Digital" }] },
+  ]),
+);
 const ok: Verifier = async () => ({ ok: true });
 const fail: Verifier = async () => ({ ok: false, reason: "probe 1/1: not_found (pepper)" });
 
 function storeWithPrevious(): FakeRedis {
   const store = new FakeRedis();
-  store.hashes.set(SEATING_HASH_KEY, new Map([["old".padStart(64, "f"), 9]]));
+  store.hashes.set(SEATING_HASH_KEY, new Map([["old".padStart(64, "f"), "9"]]));
   store.ttl.set(SEATING_HASH_KEY, EXPIRE - 100);
   return store;
 }
@@ -76,6 +81,13 @@ describe("publishSeating", () => {
     expect([...store.hashes.keys()]).toEqual([SEATING_HASH_KEY]);
   });
 
+  it("stores each record as JSON that round-trips through the runtime schema", async () => {
+    const store = new FakeRedis();
+    await publish(store, ok);
+    const [digest, raw] = [...store.hashes.get(SEATING_HASH_KEY)!.entries()][0];
+    expect(StoredSeatEntrySchema.parse(raw)).toEqual(NEW.get(digest));
+  });
+
   it("re-import: replaces atomically (live key never missing) and drops the old dataset", async () => {
     const store = storeWithPrevious();
     await publish(store, ok);
@@ -89,7 +101,7 @@ describe("publishSeating", () => {
   it("verification failure on re-import restores the previous dataset with its TTL", async () => {
     const store = storeWithPrevious();
     await expect(publish(store, fail)).rejects.toThrow(/previous dataset restored: probe 1\/1: not_found/);
-    expect([...store.hashes.get(SEATING_HASH_KEY)!.values()]).toEqual([9]);
+    expect([...store.hashes.get(SEATING_HASH_KEY)!.values()]).toEqual(["9"]);
     expect(store.ttl.get(SEATING_HASH_KEY)).toBe(EXPIRE - 100);
     expect([...store.hashes.keys()]).toEqual([SEATING_HASH_KEY]);
     expect(store.liveHistory).not.toContain(null);
@@ -107,7 +119,7 @@ describe("publishSeating", () => {
       throw new Error("ECONNREFUSED");
     };
     await expect(publish(store, throwing)).rejects.toBeInstanceOf(ImportError);
-    expect([...store.hashes.get(SEATING_HASH_KEY)!.values()]).toEqual([9]);
+    expect([...store.hashes.get(SEATING_HASH_KEY)!.values()]).toEqual(["9"]);
   });
 
   it("refuses to publish without probes, touching nothing", async () => {
@@ -141,14 +153,14 @@ describe("sampleProbes", () => {
 
   it("picks first, middle and last attendees, normalized", () => {
     expect(sampleProbes(csv(...rows))).toEqual([
-      { email: "p0@nexodigital.example", table: 1 },
-      { email: "p5@nexodigital.example", table: 6 },
-      { email: "p9@nexodigital.example", table: 10 },
+      { email: "p0@nexodigital.example", table: 1, tablemates: 0 },
+      { email: "p5@nexodigital.example", table: 6, tablemates: 0 },
+      { email: "p9@nexodigital.example", table: 10, tablemates: 0 },
     ]);
   });
 
   it("handles files smaller than the requested count", () => {
-    expect(sampleProbes(csv(rows[0]))).toEqual([{ email: "p0@nexodigital.example", table: 1 }]);
+    expect(sampleProbes(csv(rows[0]))).toEqual([{ email: "p0@nexodigital.example", table: 1, tablemates: 0 }]);
     expect(sampleProbes(csv(rows[0], rows[1]), 3)).toHaveLength(2);
     expect(sampleProbes("email,table\n")).toEqual([]);
   });

@@ -8,7 +8,11 @@ import type { Verifier } from "./seating-publish";
  * cannot. Messages never include emails.
  */
 
-const LookupResponse = z.object({ status: z.string(), table: z.number().optional() });
+const LookupResponse = z.object({
+  status: z.string(),
+  table: z.number().optional(),
+  tablemates: z.array(z.object({ name: z.string(), company: z.string() })).optional(),
+});
 
 const HINTS: Record<string, string> = {
   not_found: "EMAIL_HMAC_PEPPER or ALLOWED_EMAIL_DOMAINS differ between this import and the deployment",
@@ -40,12 +44,18 @@ export function createHttpVerifier(baseUrl: string, fetchImpl: typeof fetch = fe
       const parsed = LookupResponse.safeParse(await response.json().catch(() => null));
       if (!parsed.success) return { ok: false, reason: `${label}: unexpected response (HTTP ${response.status})` };
 
-      const { status, table } = parsed.data;
+      const { status, table, tablemates } = parsed.data;
       if (status !== "found") {
         return { ok: false, reason: `${label}: ${status} (${HINTS[status] ?? `HTTP ${response.status}`})` };
       }
       if (table !== probe.table) {
         return { ok: false, reason: `${label}: expected table ${probe.table}, got ${table} (stale or concurrent import?)` };
+      }
+      if (tablemates?.length !== probe.tablemates) {
+        return {
+          ok: false,
+          reason: `${label}: expected ${probe.tablemates} tablemates, got ${tablemates?.length ?? "none"} (deployment running an older version?)`,
+        };
       }
     }
     return { ok: true };

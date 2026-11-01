@@ -6,7 +6,11 @@ import { tablePosition } from "@/lib/venue";
 import { FloorPlan } from "./floor-plan";
 
 const ApiResponseSchema = z.discriminatedUnion("status", [
-  z.object({ status: z.literal("found"), table: z.number().int().positive() }),
+  z.object({
+    status: z.literal("found"),
+    table: z.number().int().positive(),
+    tablemates: z.array(z.object({ name: z.string(), company: z.string() })),
+  }),
   z.object({ status: z.literal("not_found") }),
   z.object({ status: z.literal("rate_limited") }),
   z.object({ status: z.literal("error") }),
@@ -15,8 +19,10 @@ const ApiResponseSchema = z.discriminatedUnion("status", [
 type ViewState =
   | { kind: "idle" }
   | { kind: "loading" }
-  | { kind: "found"; table: number }
+  | { kind: "found"; table: number; tablemates: Tablemate[] }
   | { kind: "message"; text: string };
+
+type Tablemate = { name: string; company: string };
 
 const MESSAGES = {
   not_found:
@@ -27,6 +33,26 @@ const MESSAGES = {
 
 function ordinal(n: number): string {
   return `${n}ª`;
+}
+
+function Tablemates({ tablemates }: { tablemates: Tablemate[] }) {
+  return (
+    <div className="card">
+      <h2 className="text-sm uppercase tracking-[0.2em] text-muted">Compartes mesa con</h2>
+      {tablemates.length === 0 ? (
+        <p className="mt-3 text-sm text-muted">Aún no hay más asistentes asignados a tu mesa.</p>
+      ) : (
+        <ul className="mt-3 divide-y divide-[var(--border)]">
+          {tablemates.map((mate, i) => (
+            <li key={i} className="flex flex-col py-2.5 first:pt-0 last:pb-0">
+              <span className="font-medium">{mate.name}</span>
+              <span className="text-sm text-muted">{mate.company}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 export function SeatFinder() {
@@ -52,7 +78,7 @@ export function SeatFinder() {
       const body = parsed.data;
       setState(
         body.status === "found"
-          ? { kind: "found", table: body.table }
+          ? { kind: "found", table: body.table, tablemates: body.tablemates }
           : { kind: "message", text: MESSAGES[body.status] },
       );
     } catch {
@@ -76,6 +102,7 @@ export function SeatFinder() {
             {ordinal(row + 1)} fila desde el escenario · {ordinal(col + 1)} mesa desde la izquierda
           </p>
         </div>
+        <Tablemates tablemates={state.tablemates} />
         <div className="card p-3">
           <FloorPlan highlightedTable={state.table} />
         </div>

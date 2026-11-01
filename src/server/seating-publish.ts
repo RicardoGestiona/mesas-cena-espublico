@@ -1,4 +1,4 @@
-import { SEATING_HASH_KEY } from "./seating-format";
+import { SEATING_HASH_KEY, type SeatEntry } from "./seating-format";
 import { ImportError, type Probe } from "./seating-import";
 
 /**
@@ -13,7 +13,7 @@ export const PREVIOUS_KEY = `${SEATING_HASH_KEY}:previous`;
 export interface SeatingStoreAdmin {
   exists(key: string): Promise<boolean>;
   del(key: string): Promise<void>;
-  hset(key: string, fields: Record<string, number>): Promise<void>;
+  hset(key: string, fields: Record<string, string>): Promise<void>;
   expireAt(key: string, unixSeconds: number): Promise<void>;
   /** Applies all renames in a single atomic transaction (RENAME preserves TTL). */
   atomicRename(pairs: readonly (readonly [from: string, to: string])[]): Promise<void>;
@@ -24,7 +24,7 @@ export type Verifier = (probes: readonly Probe[]) => Promise<VerificationResult>
 
 export interface PublishInput {
   store: SeatingStoreAdmin;
-  seating: ReadonlyMap<string, number>;
+  seating: ReadonlyMap<string, SeatEntry>;
   expireUnix: number;
   probes: readonly Probe[];
   verify: Verifier;
@@ -44,7 +44,8 @@ export async function publishSeating({
   await store.del(STAGING_KEY);
   const entries = [...seating.entries()];
   for (let i = 0; i < entries.length; i += chunkSize) {
-    await store.hset(STAGING_KEY, Object.fromEntries(entries.slice(i, i + chunkSize)));
+    const chunk = entries.slice(i, i + chunkSize).map(([digest, entry]) => [digest, JSON.stringify(entry)]);
+    await store.hset(STAGING_KEY, Object.fromEntries(chunk));
   }
   // TTL first, so even an abandoned staging key self-deletes after the event.
   await store.expireAt(STAGING_KEY, expireUnix);

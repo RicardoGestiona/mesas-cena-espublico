@@ -1,6 +1,7 @@
 /**
- * Imports a seating CSV into the store, keeping ONLY `HMAC(email) -> table`.
- * Every other column (names, company…) is ignored and never leaves this process.
+ * Imports a seating CSV into the store as `HMAC(email) -> { table, tablemates }`.
+ * Emails never leave this process; names and companies are stored only as the
+ * tablemates shown to other attendees of the same table.
  * The import is all-or-nothing: any invalid row aborts it.
  * Redis imports are verified against the deployed app (--verify-url, default APP_URL)
  * with a few attendees from the CSV; on failure the previous dataset is restored.
@@ -16,6 +17,7 @@ import { Redis } from "@upstash/redis";
 import { z } from "zod";
 import { EnvSchema } from "../src/server/env-schema";
 import { resolveRedisCredentials } from "../src/server/redis-credentials";
+import type { SeatEntry } from "../src/server/seating-format";
 import { ImportError, buildSeating, sampleProbes } from "../src/server/seating-import";
 import { publishSeating, type SeatingStoreAdmin } from "../src/server/seating-publish";
 import { VerifyUrlSchema, createHttpVerifier } from "../src/server/seating-verify";
@@ -43,7 +45,7 @@ function upstashAdmin(redis: Redis): SeatingStoreAdmin {
 
 async function writeRedis(
   csv: string,
-  seating: Map<string, number>,
+  seating: Map<string, SeatEntry>,
   expiresAt: string | undefined,
   verifyUrl: string | undefined,
 ): Promise<void> {
@@ -65,7 +67,7 @@ async function writeRedis(
   });
 }
 
-function writeMemory(seating: Map<string, number>, file: string): void {
+function writeMemory(seating: Map<string, SeatEntry>, file: string): void {
   const outPath = path.resolve(file);
   mkdirSync(path.dirname(outPath), { recursive: true });
   writeFileSync(outPath, JSON.stringify(Object.fromEntries(seating)), "utf8");
@@ -89,7 +91,7 @@ async function main(): Promise<void> {
   if (args.target === "redis") await writeRedis(csv, seating, args["expires-at"], args["verify-url"]);
   else writeMemory(seating, env.SEATING_MEMORY_FILE);
 
-  const tables = new Set(seating.values()).size;
+  const tables = new Set([...seating.values()].map((entry) => entry.table)).size;
   const verified = args.target === "redis";
   console.log(JSON.stringify({ event: "seating.imported", target: args.target, attendees: seating.size, tables, verified }));
 }

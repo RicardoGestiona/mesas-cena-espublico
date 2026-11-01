@@ -4,13 +4,14 @@ import { emailDomain, normalizeEmail } from "@/lib/email";
 import { isValidTable } from "@/lib/venue";
 import { hmacEmail } from "./crypto";
 import { serverEnv, type ServerEnv } from "./env";
+import type { Tablemate } from "./seating-format";
 import { seatingRepository, type SeatingRepository } from "./seating-repository";
 
 export const LookupRequestSchema = z.object({
   email: z.string().max(254),
 });
 
-export type LookupResult = { status: "found"; table: number } | { status: "not_found" };
+export type LookupResult = { status: "found"; table: number; tablemates: Tablemate[] } | { status: "not_found" };
 
 const NOT_FOUND: LookupResult = { status: "not_found" };
 const EmailFormat = z.email();
@@ -25,7 +26,7 @@ function defaultDeps(): LookupDeps {
 }
 
 /**
- * Resolves the table for an email. Invalid format, disallowed domain and
+ * Resolves the table and tablemates (name + company; never emails) for an email. Invalid format, disallowed domain and
  * unknown email all collapse into the same `not_found` result, and every path
  * performs a store read so they are indistinguishable by timing.
  */
@@ -39,8 +40,13 @@ export async function lookupTable(
 
   // Always hash + read, even when ineligible, to avoid a timing oracle.
   const digest = hmacEmail(eligible ? email : `ineligible:${email}`, env.EMAIL_HMAC_PEPPER);
-  const table = await repository.findTable(digest);
+  const seat = await repository.findSeat(digest);
 
-  if (!eligible || table === null || !isValidTable(table)) return NOT_FOUND;
-  return { status: "found", table };
+  if (!eligible || seat === null || !isValidTable(seat.table)) return NOT_FOUND;
+  return {
+    status: "found",
+    table: seat.table,
+    // Explicit projection: only these two fields can ever reach the client.
+    tablemates: seat.tablemates.map(({ name, company }) => ({ name, company })),
+  };
 }

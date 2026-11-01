@@ -8,8 +8,8 @@ import path from "node:path";
 
 const BASE = "https://mesas.example";
 const PROBES = [
-  { email: "lucia.garcia@nexodigital.example", table: 7 },
-  { email: "hugo.perez@atriasistemas.example", table: 42 },
+  { email: "lucia.garcia@nexodigital.example", table: 7, tablemates: 1 },
+  { email: "hugo.perez@atriasistemas.example", table: 42, tablemates: 0 },
 ];
 
 function fakeFetch(...bodies: { status: number; body: unknown }[]): typeof fetch {
@@ -23,8 +23,8 @@ function fakeFetch(...bodies: { status: number; body: unknown }[]): typeof fetch
 describe("createHttpVerifier (unit)", () => {
   it("passes when every probe resolves to its expected table", async () => {
     const fetchImpl = fakeFetch(
-      { status: 200, body: { status: "found", table: 7 } },
-      { status: 200, body: { status: "found", table: 42 } },
+      { status: 200, body: { status: "found", table: 7, tablemates: [{ name: "Ana", company: "Nexo" }] } },
+      { status: 200, body: { status: "found", table: 42, tablemates: [] } },
     );
     expect(await createHttpVerifier(BASE, fetchImpl)(PROBES)).toEqual({ ok: true });
     expect(fetchImpl).toHaveBeenCalledWith(`${BASE}/api/lookup`, expect.objectContaining({ method: "POST" }));
@@ -34,7 +34,9 @@ describe("createHttpVerifier (unit)", () => {
     [{ status: 200, body: { status: "not_found" } }, /probe 1\/2: not_found \(EMAIL_HMAC_PEPPER/],
     [{ status: 500, body: { status: "error" } }, /deployment misconfigured/],
     [{ status: 429, body: { status: "rate_limited" } }, /rate limited/],
-    [{ status: 200, body: { status: "found", table: 8 } }, /expected table 7, got 8/],
+    [{ status: 200, body: { status: "found", table: 8, tablemates: [] } }, /expected table 7, got 8/],
+    [{ status: 200, body: { status: "found", table: 7, tablemates: [] } }, /expected 1 tablemates, got 0/],
+    [{ status: 200, body: { status: "found", table: 7 } }, /got none \(deployment running an older version\?\)/],
     [{ status: 502, body: "<html>bad gateway</html>" }, /unexpected response \(HTTP 502\)/],
   ])("fails with a diagnostic for %j", async (reply, reason) => {
     const result = await createHttpVerifier(BASE, fakeFetch(reply))(PROBES);
