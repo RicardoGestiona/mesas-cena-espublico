@@ -59,7 +59,32 @@ function SectionHeader({ title, trailing }: { title: string; trailing?: ReactNod
   );
 }
 
+/** True while a scroll container still has content below its visible area. */
+function useHasMoreBelow<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [hasMore, setHasMore] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => setHasMore(el.scrollTop + el.clientHeight < el.scrollHeight - 1);
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    // Covers orientation changes, where the max-height (and so the overflow) changes.
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => {
+      el.removeEventListener("scroll", update);
+      observer.disconnect();
+    };
+  }, []);
+
+  return { ref, hasMore };
+}
+
 function TablemateList({ tablemates }: { tablemates: Tablemate[] }) {
+  const { ref: listRef, hasMore } = useHasMoreBelow<HTMLDivElement>();
+
   return (
     <section>
       <SectionHeader
@@ -72,30 +97,41 @@ function TablemateList({ tablemates }: { tablemates: Tablemate[] }) {
           ) : null
         }
       />
-      <Card className="gap-0 rounded-2xl py-0 shadow-[0_1px_2px_rgb(0_0_0/0.04)] ring-0 landscape:max-h-[calc(100dvh-4.5rem)] landscape:overflow-y-auto landscape:overscroll-contain">
-        {tablemates.length === 0 ? (
-          <p className="px-4 py-4 text-[15px] text-muted-foreground">Aún no hay más asistentes asignados a tu mesa.</p>
-        ) : (
-          <ul>
-            {tablemates.map((mate, i) => (
-              <li key={i}>
-                {i > 0 && <Separator className="ml-[4.25rem] w-auto" />}
-                <div className="flex items-center gap-3 px-4 py-2.5">
-                  <Avatar className="size-10 after:hidden">
-                    <AvatarFallback className="bg-linear-to-b from-monogram-from to-monogram-to text-[15px] font-medium text-white">
-                      {initials(mate.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex min-w-0 flex-col">
-                    <span className="truncate text-[17px] leading-snug">{mate.name}</span>
-                    <span className="truncate text-[13px] text-muted-foreground">{mate.company}</span>
+      <div className="relative">
+        <Card
+          ref={listRef}
+          className="gap-0 rounded-2xl py-0 shadow-[0_1px_2px_rgb(0_0_0/0.04)] ring-0 landscape:max-h-[calc(100dvh-4.5rem)] landscape:overflow-y-auto landscape:overscroll-contain"
+        >
+          {tablemates.length === 0 ? (
+            <p className="px-4 py-4 text-[15px] text-muted-foreground">Aún no hay más asistentes asignados a tu mesa.</p>
+          ) : (
+            <ul>
+              {tablemates.map((mate, i) => (
+                <li key={i}>
+                  {i > 0 && <Separator className="ml-[4.25rem] w-auto" />}
+                  <div className="flex items-center gap-3 px-4 py-2.5">
+                    <Avatar className="size-10 after:hidden">
+                      <AvatarFallback className="bg-linear-to-b from-monogram-from to-monogram-to text-[15px] font-medium text-white">
+                        {initials(mate.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate text-[17px] leading-snug">{mate.name}</span>
+                      <span className="truncate text-[13px] text-muted-foreground">{mate.company}</span>
+                    </div>
                   </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+        {/* Fade hinting at more tablemates below; hidden once the end of the list is reached. */}
+        <div
+          aria-hidden
+          data-visible={hasMore}
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-14 rounded-b-2xl bg-linear-to-t from-card to-transparent opacity-0 transition-opacity duration-300 data-[visible=true]:opacity-100 motion-reduce:transition-none"
+        />
+      </div>
     </section>
   );
 }
