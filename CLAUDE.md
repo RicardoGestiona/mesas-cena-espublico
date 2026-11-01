@@ -71,3 +71,5 @@ UTF-8, separado por comas, sin comillas, con cabecera. Columnas obligatorias: `e
 ## Pendiente
 
 Provisionar Upstash Redis en Vercel · plano real de la sala · dominios reales del grupo · fecha de caducidad.
+
+**Tras la cena:** `RATE_LIMIT_PER_MINUTE` está en 600 en producción (desde 2026-11-01) para soportar el wifi compartido del local. Al día siguiente hay que volver a 120 en Vercel y hacer Redeploy, porque sin redeploy no se aplica. El proyecto de Vercel está en otra cuenta, no en la del MCP, así que se cambia desde el panel.
