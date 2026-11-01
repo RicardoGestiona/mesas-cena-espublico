@@ -55,3 +55,8 @@
 ## 2026-11-01 — Límite de peticiones en producción
 - `RATE_LIMIT_PER_MINUTE=120` en Vercel (Production), para que no se bloquee a los asistentes que comparten IP tras el NAT del wifi del local. Comprobado: 15 consultas seguidas desde una IP → 15 `not_found`, ninguna `rate_limited`.
 - El proyecto de Vercel pertenece a una cuenta distinta de la que tiene conectado el MCP de Vercel (`gestionatools`): los cambios en Vercel se hacen desde el panel o con la CLI iniciada en la cuenta dueña.
+
+## 2026-11-01 — Prueba de carga (500 consultas simultáneas, una sola IP)
+- Simula el peor caso: todo el público en el wifi del local (una IP por el NAT) en el mismo minuto.
+- Con 120/min: 120 `200` y 380 `429`. Con `RATE_LIMIT_PER_MINUTE=600` (tras redeploy): 500/500 `200`, total 2,3 s, p50 1,6 s, p99 2,2 s, sin errores.
+- Pendiente: volver a 120/min (y redeploy) después de la cena; 600/min solo se justifica durante el evento.
