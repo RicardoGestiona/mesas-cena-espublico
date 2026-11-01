@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7f3ec;
+  --surface: #ffffff;
+  --foreground: #1c1917;
+  --muted: #6b635b;
+  --border: #e4ddd2;
+  --accent: #b4532a;
+  --accent-contrast: #ffffff;
+  --danger: #b42318;
+  --plan-table: #efe8dc;
+  --plan-line: #c9bfb0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #14110f;
+    --surface: #1e1a17;
+    --foreground: #f2ece4;
+    --muted: #a59b90;
+    --border: #36302a;
+    --accent: #e8875a;
+    --accent-contrast: #14110f;
+    --danger: #f97066;
+    --plan-table: #2b2521;
+    --plan-line: #4a423b;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-geist-sans);
+  --font-display: var(--font-fraunces);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border p-5;
+    background: var(--surface);
+    border-color: var(--border);
+  }
+  .input {
+    @apply w-full rounded-xl border px-4 py-3 text-base outline-none;
+    background: var(--background);
+    border-color: var(--border);
+  }
+  .input:focus-visible {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+  .btn-primary {
+    @apply rounded-xl px-4 py-3 text-base font-semibold transition-opacity disabled:opacity-50;
+    background: var(--accent);
+    color: var(--accent-contrast);
+  }
+  .btn-secondary {
+    @apply rounded-xl border px-4 py-3 text-base font-medium;
+    border-color: var(--border);
+  }
+}
+
+/* Floor plan (SVG) */
+.plan-wall { fill: none; stroke: var(--plan-line); stroke-width: 3; }
+.plan-stage { fill: var(--plan-table); stroke: var(--plan-line); }
+.plan-label { fill: var(--muted); font-size: 13px; letter-spacing: 0.18em; font-weight: 600; }
+.plan-label--you { fill: var(--accent); }
+.plan-table-top { fill: var(--plan-table); stroke: var(--plan-line); }
+.plan-seat { fill: var(--plan-line); }
+.plan-table-number { fill: var(--muted); font-size: 17px; font-weight: 600; }
+.plan-table--active .plan-table-top { fill: var(--accent); stroke: var(--accent); }
+.plan-table--active .plan-seat { fill: var(--accent); }
+.plan-table--active .plan-table-number { fill: var(--accent-contrast); font-size: 20px; }
+.plan-path {
+  fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 2 8;
+}
+.plan-you { fill: var(--accent); }
+.plan-pulse { fill: none; stroke: var(--accent); stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: pulse 1.8s ease-out infinite; }
+
+@keyframes pulse {
+  from { opacity: 0.8; transform: scale(0.85); }
+  to { opacity: 0; transform: scale(1.25); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-pulse { animation: none; opacity: 0.6; }
+}

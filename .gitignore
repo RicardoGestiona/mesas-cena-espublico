@@ -1,0 +1,26 @@
+# Dependencies & build
+node_modules/
+.next/
+dist/
+out/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# Private seating data (never commit)
+data/private/
+*.csv
+
+# Local/private context
+docs/history/
+.vercel/
+.DS_Store
+CLAUDE.local.md
+*.pem
+*.tsbuildinfo
+next-env.d.ts
+coverage/
+npm-debug.log*
+.playwright-mcp/

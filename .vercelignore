@@ -1,0 +1,5 @@
+data/
+.env*
+!.env.example
+CLAUDE.local.md
+docs/history/
