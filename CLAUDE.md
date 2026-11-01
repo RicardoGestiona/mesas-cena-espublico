@@ -8,6 +8,8 @@ Web para la cena de empresa de un grupo de empresas (~500 comensales, mesas de 1
 
 Producción: https://mesas-cena-espublico.vercel.app (Vercel, deploy automático desde `main` de `RicardoGestiona/mesas-cena-espublico`).
 
+Región de funciones: `fra1`, fijada en `vercel.ts` (prevalece sobre el panel). Upstash en `eu-central-1`.
+
 Stack: Next.js 16 (App Router, Turbopack) en Vercel · TypeScript estricto · Zod 4 · Tailwind 4 · Upstash Redis (vía Vercel Marketplace) en producción.
 
 **Next.js 16 tiene cambios incompatibles con versiones anteriores** (`proxy.ts` sustituye a middleware, `LayoutProps` generado, etc.). Antes de escribir código Next, consulta `node_modules/next/dist/docs/` (ver `AGENTS.md`).
