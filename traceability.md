@@ -30,3 +30,8 @@
 - Solución: `resolveRedisCredentials` (estándar → Upstash → una única pareja con prefijo; si hay ambigüedad, error) + cliente explícito `new Redis({url, token})` en runtime y en el script. Logs con nombres de variables, nunca valores.
 - `lookup.failed` ahora incluye `invalidEnv`, y `serverEnv()` informa de todas las variables inválidas en una sola pasada.
 - Verificado contra el Upstash real (PING) con nombres estándar y con prefijo. 69 tests.
+
+## 2026-11-01 — Producción operativa
+- Causa final del 500: `SEATING_STORE=memory` en Vercel (el runtime lo rechaza en producción a propósito). También se recreó `EMAIL_HMAC_PEPPER` (salía como "Needs Attention"). Tras redeploy: `200 not_found` uniforme (Redis vacío).
+- Lección: los cambios de variables necesitan redeploy, y el diagnóstico más rápido es `lookup.failed.invalidEnv` en los Runtime Logs.
+- Pendiente: la región sigue en `iad1` (el ajuste del panel no se aplicó) → fijar `fra1` en el código.
