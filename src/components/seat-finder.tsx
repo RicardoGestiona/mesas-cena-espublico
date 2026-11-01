@@ -39,12 +39,15 @@ const MESSAGES = {
   error: "Algo ha fallado. Inténtalo de nuevo en unos segundos.",
 } as const;
 
-/** iOS Contacts-style monogram: first letter of the first and last word. */
+// Acute, grave, circumflex and diaeresis; the tilde (U+0303) is kept so "Ñ" survives.
+const VOWEL_ACCENTS = /[\u0300\u0301\u0302\u0308]/g;
+
+/** iOS Contacts-style monogram: first letter of the first and last word, without accents. */
 function initials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
   const first = words[0]?.[0] ?? "";
   const last = words.length > 1 ? (words[words.length - 1]?.[0] ?? "") : "";
-  return `${first}${last}`.toLocaleUpperCase("es");
+  return `${first}${last}`.normalize("NFD").replace(VOWEL_ACCENTS, "").normalize("NFC").toLocaleUpperCase("es");
 }
 
 function SectionHeader({ title, trailing }: { title: string; trailing?: ReactNode }) {
