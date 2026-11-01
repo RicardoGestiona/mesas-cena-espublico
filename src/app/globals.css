@@ -5,6 +5,9 @@
 /* Dark mode follows the OS setting (no theme toggle). */
 @custom-variant dark (@media (prefers-color-scheme: dark));
 
+/* Landscape with little height (phones on their side): compact, two-column tablemate list. */
+@custom-variant short-landscape (@media (orientation: landscape) and (max-height: 520px));
+
 /* Apple-inspired palette: neutral greys + a single systemBlue accent. */
 :root {
   --background: #f5f5f7;

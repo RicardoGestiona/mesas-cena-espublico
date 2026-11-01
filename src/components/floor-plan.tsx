@@ -10,6 +10,7 @@ const ORIGIN_Y = 122;
 const WIDTH = ORIGIN_X * 2 + COL_SPACING * (VENUE.tablesPerRow - 1);
 const LAST_ROW_Y = ORIGIN_Y + ROW_SPACING * (VENUE.rows - 1);
 const CROSS_AISLE_Y = LAST_ROW_Y + TABLE_RADIUS + 22;
+// viewBox is 460x832: seat-finder.tsx sizes the landscape plan with aspect-[460/832]; keep both in sync.
 const HEIGHT = CROSS_AISLE_Y + 50;
 const ENTRANCE_X = WIDTH / 2;
 const ENTRANCE_WIDTH = 90;
@@ -46,7 +47,7 @@ function walkingPath(table: number): string {
   ].join(" ");
 }
 
-export function FloorPlan({ highlightedTable }: { highlightedTable: number }) {
+export function FloorPlan({ highlightedTable, className = "h-auto w-full" }: { highlightedTable: number; className?: string }) {
   const target = center(highlightedTable);
 
   return (
@@ -54,7 +55,7 @@ export function FloorPlan({ highlightedTable }: { highlightedTable: number }) {
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       role="img"
       aria-labelledby="plan-title"
-      className="h-auto w-full"
+      className={className}
     >
       <title id="plan-title">{`Plano de la sala con la mesa ${highlightedTable} resaltada`}</title>
 

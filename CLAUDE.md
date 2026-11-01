@@ -12,7 +12,7 @@ Región de funciones: `fra1`, fijada en `vercel.ts` (prevalece sobre el panel). 
 
 Stack: Next.js 16 (App Router, Turbopack) en Vercel · TypeScript estricto · Zod 4 · Tailwind 4 · Upstash Redis (vía Vercel Marketplace) en producción.
 
-UI: shadcn/ui (`components.json`, estilo `radix-nova`, componentes en `src/components/ui/`, añadir con `npx shadcn@latest add <c>`). Estética Apple: fuente del sistema (SF Pro) con Geist como alternativa, un único acento systemBlue y tokens en `globals.css`. El modo oscuro sigue a `prefers-color-scheme` (variante `dark` por media query, no hay clase `.dark`). Antes de añadir un componente Radix, comprueba que no ponga `style` en línea (CSP).
+UI: shadcn/ui (`components.json`, estilo `radix-nova`, componentes en `src/components/ui/`, añadir con `npx shadcn@latest add <c>`). Estética Apple: fuente del sistema (SF Pro) con Geist como alternativa, un único acento systemBlue y tokens en `globals.css`. El modo oscuro sigue a `prefers-color-scheme` (variante `dark` por media query, no hay clase `.dark`). Antes de añadir un componente Radix, comprueba que no ponga `style` en línea (CSP). Resultado en horizontal (`landscape:`): compañeros a la izquierda y plano a la derecha, en una sola pantalla y sin scroll. El plano se dimensiona por su altura con `aspect-[460/832]`, que debe coincidir con el viewBox de `floor-plan.tsx`. La variante `short-landscape:` (horizontal con altura ≤ 520 px, es decir, un móvil girado) compacta la lista en dos columnas.
 
 **Next.js 16 tiene cambios incompatibles con versiones anteriores** (`proxy.ts` sustituye a middleware, `LayoutProps` generado, etc.). Antes de escribir código Next, consulta `node_modules/next/dist/docs/` (ver `AGENTS.md`).
 

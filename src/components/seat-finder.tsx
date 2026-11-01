@@ -86,7 +86,7 @@ function TablemateList({ tablemates }: { tablemates: Tablemate[] }) {
   const { ref: listRef, hasMore } = useHasMoreBelow<HTMLDivElement>();
 
   return (
-    <section>
+    <section className="landscape:flex landscape:min-h-0 landscape:flex-col">
       <SectionHeader
         title="En tu mesa"
         trailing={
@@ -97,27 +97,28 @@ function TablemateList({ tablemates }: { tablemates: Tablemate[] }) {
           ) : null
         }
       />
-      <div className="relative">
+      <div className="relative landscape:flex landscape:min-h-0 landscape:flex-col">
         <Card
           ref={listRef}
-          className="gap-0 rounded-2xl py-0 shadow-[0_1px_2px_rgb(0_0_0/0.04)] ring-0 landscape:max-h-[calc(100dvh-4.5rem)] landscape:overflow-y-auto landscape:overscroll-contain"
+          className="gap-0 rounded-2xl py-0 shadow-[0_1px_2px_rgb(0_0_0/0.04)] ring-0 landscape:min-h-0 landscape:overflow-y-auto landscape:overscroll-contain short-landscape:py-1"
         >
           {tablemates.length === 0 ? (
             <p className="px-4 py-4 text-[15px] text-muted-foreground">Aún no hay más asistentes asignados a tu mesa.</p>
           ) : (
-            <ul>
+            // Phone in landscape: two columns so a full table (9 tablemates) fits without scrolling.
+            <ul className="short-landscape:grid short-landscape:grid-cols-2">
               {tablemates.map((mate, i) => (
                 <li key={i}>
-                  {i > 0 && <Separator className="ml-[4.25rem] w-auto" />}
-                  <div className="flex items-center gap-3 px-4 py-2.5">
-                    <Avatar className="size-10 after:hidden">
-                      <AvatarFallback className="bg-linear-to-b from-monogram-from to-monogram-to text-[15px] font-medium text-white">
+                  {i > 0 && <Separator className="ml-[4.25rem] w-auto short-landscape:hidden" />}
+                  <div className="flex items-center gap-3 px-4 py-2.5 short-landscape:py-1">
+                    <Avatar className="size-10 after:hidden short-landscape:size-8">
+                      <AvatarFallback className="bg-linear-to-b from-monogram-from to-monogram-to text-[15px] font-medium text-white short-landscape:text-[13px]">
                         {initials(mate.name)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex min-w-0 flex-col">
-                      <span className="truncate text-[17px] leading-snug">{mate.name}</span>
-                      <span className="truncate text-[13px] text-muted-foreground">{mate.company}</span>
+                      <span className="truncate text-[17px] leading-snug short-landscape:text-[15px]">{mate.name}</span>
+                      <span className="truncate text-[13px] text-muted-foreground short-landscape:text-xs">{mate.company}</span>
                     </div>
                   </div>
                 </li>
@@ -136,6 +137,8 @@ function TablemateList({ tablemates }: { tablemates: Tablemate[] }) {
   );
 }
 
+const REVEAL = "animate-in fade-in slide-in-from-bottom-3 fill-mode-both duration-700 motion-reduce:animate-none";
+
 function Result({ table, tablemates, onBack }: { table: number; tablemates: Tablemate[]; onBack: () => void }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const { row, col } = tablePosition(table);
@@ -146,7 +149,7 @@ function Result({ table, tablemates, onBack }: { table: number; tablemates: Tabl
   }, []);
 
   return (
-    <section aria-live="polite" className="mx-auto flex w-full max-w-md flex-col gap-8 landscape:max-w-4xl">
+    <section aria-live="polite" className="mx-auto flex w-full max-w-md flex-col gap-8 landscape:max-w-5xl landscape:gap-2">
       <Button
         type="button"
         variant="link"
@@ -157,34 +160,45 @@ function Result({ table, tablemates, onBack }: { table: number; tablemates: Tabl
         Buscar otro email
       </Button>
 
-      {/* Portrait: stacked. Landscape: plan on the left, table number + tablemates on the right. */}
-      <div className="flex flex-col gap-8 landscape:grid landscape:grid-cols-2 landscape:grid-rows-[auto_1fr] landscape:items-start landscape:gap-x-8 landscape:gap-y-6">
-        <header className="flex flex-col items-center text-center landscape:col-start-2 landscape:row-start-1 animate-in fade-in slide-in-from-bottom-3 duration-700 motion-reduce:animate-none">
-          <p className="text-[15px] font-medium text-muted-foreground">Tu mesa</p>
-          <h1
-            ref={headingRef}
-            tabIndex={-1}
-            className="font-heading text-[8.5rem] leading-none landscape:text-[6.5rem] font-semibold tracking-[-0.06em] tabular-nums outline-none"
+      {/*
+        Portrait: stacked (number, plan, tablemates).
+        Landscape: one screen, no page scroll. Left: compact number + tablemates; right: plan sized
+        by height with aspect-[460/832], the FloorPlan viewBox.
+      */}
+      <div className="flex flex-col gap-8 landscape:grid landscape:h-[calc(100dvh-4rem)] landscape:grid-cols-[minmax(0,1fr)_auto] landscape:grid-rows-[minmax(0,1fr)] landscape:gap-6">
+        <div className="contents landscape:flex landscape:min-h-0 landscape:flex-col landscape:gap-3">
+          <header
+            className={`order-1 flex flex-col items-center text-center landscape:grid landscape:grid-cols-[auto_1fr] landscape:items-center landscape:gap-x-4 landscape:px-1 landscape:text-left ${REVEAL}`}
           >
-            <span className="sr-only">Mesa </span>
-            {table}
-          </h1>
-          <p className="mt-3 text-[15px] text-muted-foreground">
-            Fila {row + 1} desde el escenario <span aria-hidden>·</span> {col + 1}ª desde la izquierda
-          </p>
-        </header>
+            <p className="text-[15px] font-medium text-muted-foreground landscape:col-start-2 landscape:row-start-1 landscape:self-end">
+              Tu mesa
+            </p>
+            <h1
+              ref={headingRef}
+              tabIndex={-1}
+              className="font-heading text-[8.5rem] leading-none font-semibold tracking-[-0.06em] tabular-nums outline-none landscape:col-start-1 landscape:row-span-2 landscape:row-start-1 landscape:text-[3.5rem]"
+            >
+              <span className="sr-only">Mesa </span>
+              {table}
+            </h1>
+            <p className="mt-3 text-[15px] text-muted-foreground landscape:col-start-2 landscape:row-start-2 landscape:mt-0 landscape:self-start">
+              Fila {row + 1} desde el escenario <span aria-hidden>·</span> {col + 1}ª desde la izquierda
+            </p>
+          </header>
 
-        <section className="landscape:col-start-1 landscape:row-span-2 landscape:row-start-1 animate-in fade-in slide-in-from-bottom-3 fill-mode-both delay-150 duration-700 motion-reduce:animate-none">
-          <SectionHeader title="Cómo llegar" />
-          <Card className="rounded-2xl p-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)] ring-0">
-            <FloorPlan highlightedTable={table} />
+          <div className={`order-3 delay-300 landscape:flex landscape:min-h-0 landscape:flex-col ${REVEAL}`}>
+            <TablemateList tablemates={tablemates} />
+          </div>
+        </div>
+
+        <section className={`order-2 delay-150 landscape:col-start-2 landscape:row-start-1 ${REVEAL}`}>
+          <div className="landscape:hidden">
+            <SectionHeader title="Cómo llegar" />
+          </div>
+          <Card className="rounded-2xl p-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)] ring-0 landscape:aspect-[460/832] landscape:h-[calc(100dvh-4rem)] landscape:p-2">
+            <FloorPlan highlightedTable={table} className="h-auto w-full landscape:h-full" />
           </Card>
         </section>
-
-        {/* Landscape: pinned while the plan scrolls; the list scrolls on its own if taller than the viewport. */}
-        <div className="landscape:sticky landscape:top-4 landscape:col-start-2 landscape:row-start-2 animate-in fade-in slide-in-from-bottom-3 fill-mode-both delay-300 duration-700 motion-reduce:animate-none">
-          <TablemateList tablemates={tablemates} />
-        </div>
       </div>
     </section>
   );

@@ -6,7 +6,7 @@ export default async function Home() {
   await connection();
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-4xl flex-col px-5 pt-[max(env(safe-area-inset-top),3.5rem)] pb-[max(env(safe-area-inset-bottom),2rem)]">
+    <main className="mx-auto flex min-h-dvh w-full max-w-4xl flex-col px-5 pt-[max(env(safe-area-inset-top),3.5rem)] pb-[max(env(safe-area-inset-bottom),2rem)] landscape:pt-3 landscape:pb-3">
       <SeatFinder />
     </main>
   );
