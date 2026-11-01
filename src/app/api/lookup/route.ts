@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { ConfigError } from "@/server/env";
 import { logger } from "@/server/logger";
 import { LookupRequestSchema, lookupTable, type LookupResult } from "@/server/lookup";
 import { rateLimiter } from "@/server/rate-limit";
@@ -54,6 +55,8 @@ export async function POST(request: Request): Promise<Response> {
     logger.error("lookup.failed", {
       requestId,
       errorName: error instanceof Error ? error.name : "unknown",
+      // Variable names only, never values: makes misconfiguration diagnosable from runtime logs.
+      invalidEnv: error instanceof ConfigError ? error.fields.join(",") : undefined,
     });
     return respond(startedAt, { status: "error" }, 500);
   }

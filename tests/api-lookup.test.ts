@@ -112,10 +112,40 @@ describe("POST /api/lookup", () => {
     expect(errors.join("\n")).not.toContain("/nonexistent");
   });
 
-  it("refuses to boot with an invalid environment", async () => {
-    POST = await loadRoute({ EMAIL_HMAC_PEPPER: "too-short" });
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const response = await POST(request(json({ email: LUCIA })));
-    expect(response.status).toBe(500);
+
+  describe("misconfiguration diagnostics", () => {
+    async function failedLog(env: Record<string, string>): Promise<Record<string, unknown>> {
+      POST = await loadRoute(env);
+      const errors: string[] = [];
+      vi.spyOn(console, "error").mockImplementation((line: unknown) => void errors.push(String(line)));
+      const response = await POST(request(json({ email: LUCIA })));
+      expect(response.status).toBe(500);
+      expect(await response.json()).toStrictEqual({ status: "error" });
+      return JSON.parse(errors.find((l) => l.includes("lookup.failed"))!);
+    }
+
+    it("names missing Redis credentials when SEATING_STORE=redis", async () => {
+      const log = await failedLog({ SEATING_STORE: "redis", KV_REST_API_URL: "", KV_REST_API_TOKEN: "" });
+      expect(log).toMatchObject({ errorName: "ConfigError", invalidEnv: "KV_REST_API_URL+KV_REST_API_TOKEN" });
+    });
+
+    it("reports every invalid variable at once, by name only", async () => {
+      const log = await failedLog({ SEATING_STORE: "redis", EMAIL_HMAC_PEPPER: "short-secret-value" });
+      expect(String(log.invalidEnv).split(",").sort()).toEqual(
+        ["EMAIL_HMAC_PEPPER", "KV_REST_API_URL+KV_REST_API_TOKEN"].sort(),
+      );
+      expect(JSON.stringify(log)).not.toContain("short-secret-value");
+    });
+
+    it("accepts Upstash console variable names as credentials", async () => {
+      const log = await failedLog({
+        SEATING_STORE: "redis",
+        EMAIL_HMAC_PEPPER: "short",
+        UPSTASH_REDIS_REST_URL: "https://example.upstash.io",
+        UPSTASH_REDIS_REST_TOKEN: "token-value",
+      });
+      expect(log.invalidEnv).toBe("EMAIL_HMAC_PEPPER");
+      expect(JSON.stringify(log)).not.toContain("token-value");
+    });
   });
 });
