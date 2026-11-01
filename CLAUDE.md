@@ -25,10 +25,11 @@ npx vitest run tests/lookup.test.ts            # single file
 npx vitest run -t "rate-limits per client IP"  # single test by name
 npm run seating:synthetic   # 500 synthetic attendees + simulated draw -> data/private/attendees.synthetic.csv
 npm run seating:import -- --input <csv> --target memory
-npm run seating:import -- --input <csv> --target redis --expires-at 2026-12-20T23:59:00+01:00
+EMAIL_HMAC_PEPPER='<prod pepper>' ALLOWED_EMAIL_DOMAINS='<prod domains>' \
+  npm run seating:import -- --input <csv> --target redis --expires-at 2026-12-20T23:59:00+01:00   # verifies against APP_URL
 ```
 
-Los scripts leen `.env.local` (ver `.env.example`).
+Los scripts leen `.env.local` (ver `.env.example`); lo que se pasa en la línea de comandos tiene prioridad. **`.env.local` contiene el pepper de DESARROLLO**: para importar a Redis hay que pasar siempre el de producción en la línea de comandos. Si no coincide, la verificación E2E lo detecta (`not_found`) y hace rollback.
 
 ## Tests (`tests/`, Vitest)
 
@@ -53,10 +54,10 @@ Los scripts leen `.env.local` (ver `.env.example`).
 
 ## Arquitectura
 
-Recorrido del dato: `CSV (local)` → `scripts/import-seating.ts` (valida todo o nada: emails, dominios, mesas 1..50, duplicados y capacidad ≤10; descarta todas las columnas salvo email/table) → `seating:staging` → `RENAME` atómico a `seating` → `POST /api/lookup` (`src/app/api/lookup/route.ts`: límite de peticiones → Zod → `src/server/lookup.ts`) → `src/components/seat-finder.tsx` (valida la respuesta con Zod) → `FloorPlan`.
+Recorrido del dato: `CSV (local)` → `scripts/import-seating.ts` (valida todo o nada: emails, dominios, mesas 1..50, duplicados y capacidad ≤10; descarta todas las columnas salvo email/table) → `src/server/seating-publish.ts`: `seating:staging` con TTL → `MULTI` (`seating`→`seating:previous`, `staging`→`seating`) → verificación E2E contra `APP_URL/api/lookup` con 3 asistentes del CSV (`seating-verify.ts`) → si va bien, se borra `previous`; si falla, se restaura `previous` (o se borra todo si no había) y el script sale con error → `POST /api/lookup` (`src/app/api/lookup/route.ts`: límite de peticiones → Zod → `src/server/lookup.ts`) → `src/components/seat-finder.tsx` (valida la respuesta con Zod) → `FloorPlan`.
 
 - `src/lib/`: código común a cliente, servidor y scripts (`normalizeEmail` es la **única** normalización; si el import y la consulta usaran normalizaciones distintas, las búsquedas fallarían sin dar error).
-- `src/server/`: los módulos de ejecución importan `server-only`. `env-schema.ts`, `seating-format.ts`, `seating-import.ts` y `crypto.ts` no lo importan porque también los usan los scripts de `tsx`. No importar módulos con `server-only` desde `scripts/`.
+- `src/server/`: los módulos de ejecución importan `server-only`. `env-schema.ts`, `seating-format.ts`, `seating-import.ts`, `seating-publish.ts`, `seating-verify.ts` y `crypto.ts` no lo importan porque también los usan los scripts de `tsx`. No importar módulos con `server-only` desde `scripts/`.
 - `SeatingRepository` y `RateLimiter` tienen implementación `redis` (Upstash, `Redis.fromEnv()` lee `KV_REST_API_*` o `UPSTASH_REDIS_REST_*`) y `memory` (solo dev). `serverEnv()` rechaza `memory` en producción.
 
 ## Formato del CSV del sorteo

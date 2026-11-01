@@ -53,3 +53,28 @@ export function buildSeating(csv: string, allowedDomains: string[], pepper: stri
   if (errors.length > 0) throw new ImportError(`${errors.length} validation error(s):\n  ${errors.join("\n  ")}`);
   return seating;
 }
+
+export interface Probe {
+  email: string;
+  table: number;
+}
+
+/**
+ * Picks up to `count` known attendees (first, evenly spaced, last) to verify a
+ * published import end-to-end. Plaintext stays in the importer's memory only.
+ * Call after `buildSeating` has validated the same content.
+ */
+export function sampleProbes(csv: string, count = 3): Probe[] {
+  const { header, rows } = parseCsv(csv);
+  const emailCol = header.indexOf("email");
+  const tableCol = header.indexOf("table");
+  if (rows.length === 0 || count < 1) return [];
+  const picks = Math.min(count, rows.length);
+  const indexes = new Set(
+    Array.from({ length: picks }, (_, i) => (picks === 1 ? 0 : Math.round((i * (rows.length - 1)) / (picks - 1)))),
+  );
+  return [...indexes].map((i) => ({
+    email: normalizeEmail(rows[i].cells[emailCol] ?? ""),
+    table: Number((rows[i].cells[tableCol] ?? "").trim()),
+  }));
+}

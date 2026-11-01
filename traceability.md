@@ -18,3 +18,9 @@
 ## 2026-11-01 — Producción + QR
 - Desplegado en https://mesas-cena-espublico.vercel.app. Verificado en producción: cabeceras de seguridad, CSP con nonce sin violaciones en navegador, rutas privadas 404. `/api/lookup` devuelve 500 genérico: faltan variables de producción/Redis o redeploy (pendiente de Ricardo).
 - `scripts/generate-qr.ts` (solo URLs https, corrección de errores H). QR en `print/`, decodificado con jsQR → URL correcta (versión 5).
+
+## 2026-11-01 — Import verificado con rollback
+- Riesgo: un import a Redis con el pepper de `.env.local` (desarrollo) "funciona", pero deja producción respondiendo `not_found` a todo sin ningún aviso.
+- Solución: `publishSeating` (store inyectado) hace swap atómico conservando `seating:previous`, verifica E2E contra el despliegue real (`createHttpVerifier`, 3 probes del CSV, mensajes sin emails) y hace rollback automático si falla. `APP_URL`/`--verify-url` es obligatorio para redis (solo https, o http en localhost).
+- Bug encontrado con los tests: en Zod 4 los `refine` se ejecutan aunque `z.url()` haya fallado → `new URL()` lanzaba. Corregido con `URL.canParse`.
+- 59 tests. Mutation testing: quitar la restauración hace fallar 2 tests. Pendiente: probar contra el Redis real cuando estén las credenciales en `.env.local`.

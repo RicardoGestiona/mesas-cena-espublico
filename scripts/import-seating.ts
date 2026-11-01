@@ -2,6 +2,8 @@
  * Imports a seating CSV into the store, keeping ONLY `HMAC(email) -> table`.
  * Every other column (names, company…) is ignored and never leaves this process.
  * The import is all-or-nothing: any invalid row aborts it.
+ * Redis imports are verified against the deployed app (--verify-url, default APP_URL)
+ * with a few attendees from the CSV; on failure the previous dataset is restored.
  *
  * Usage:
  *   npm run seating:import -- --input data/private/seating.csv --target memory
@@ -13,31 +15,49 @@ import { parseArgs } from "node:util";
 import { Redis } from "@upstash/redis";
 import { z } from "zod";
 import { EnvSchema } from "../src/server/env-schema";
-import { SEATING_HASH_KEY } from "../src/server/seating-format";
-import { ImportError, buildSeating } from "../src/server/seating-import";
-
-const STAGING_KEY = `${SEATING_HASH_KEY}:staging`;
-const CHUNK_SIZE = 200;
+import { ImportError, buildSeating, sampleProbes } from "../src/server/seating-import";
+import { publishSeating, type SeatingStoreAdmin } from "../src/server/seating-publish";
+import { VerifyUrlSchema, createHttpVerifier } from "../src/server/seating-verify";
 
 const ArgsSchema = z.object({
   input: z.string().min(1),
   target: z.enum(["memory", "redis"]),
   "expires-at": z.iso.datetime({ offset: true }).optional(),
+  "verify-url": VerifyUrlSchema.optional(),
 });
 
-async function writeRedis(seating: Map<string, number>, expiresAt: string | undefined): Promise<void> {
+function upstashAdmin(redis: Redis): SeatingStoreAdmin {
+  return {
+    exists: async (key) => (await redis.exists(key)) === 1,
+    del: async (key) => void (await redis.del(key)),
+    hset: async (key, fields) => void (await redis.hset(key, fields)),
+    expireAt: async (key, unixSeconds) => void (await redis.expireat(key, unixSeconds)),
+    atomicRename: async (pairs) => {
+      const tx = redis.multi();
+      for (const [from, to] of pairs) tx.rename(from, to);
+      await tx.exec();
+    },
+  };
+}
+
+async function writeRedis(
+  csv: string,
+  seating: Map<string, number>,
+  expiresAt: string | undefined,
+  verifyUrl: string | undefined,
+): Promise<void> {
   if (!expiresAt) throw new ImportError("--expires-at is required for redis (data must self-delete after the event)");
+  if (!verifyUrl) throw new ImportError("--verify-url (or APP_URL) is required for redis to verify the import end-to-end");
   const expireUnix = Math.floor(new Date(expiresAt).getTime() / 1000);
   if (expireUnix <= Date.now() / 1000) throw new ImportError("--expires-at must be in the future");
 
-  const redis = Redis.fromEnv();
-  await redis.del(STAGING_KEY);
-  const entries = [...seating.entries()];
-  for (let i = 0; i < entries.length; i += CHUNK_SIZE) {
-    await redis.hset(STAGING_KEY, Object.fromEntries(entries.slice(i, i + CHUNK_SIZE)));
-  }
-  // Atomic swap: readers see either the previous or the new full dataset, never a partial one.
-  await redis.multi().rename(STAGING_KEY, SEATING_HASH_KEY).expireat(SEATING_HASH_KEY, expireUnix).exec();
+  await publishSeating({
+    store: upstashAdmin(Redis.fromEnv()),
+    seating,
+    expireUnix,
+    probes: sampleProbes(csv),
+    verify: createHttpVerifier(verifyUrl),
+  });
 }
 
 function writeMemory(seating: Map<string, number>, file: string): void {
@@ -54,16 +74,19 @@ async function main(): Promise<void> {
       input: { type: "string" },
       target: { type: "string", default: env.SEATING_STORE },
       "expires-at": { type: "string" },
+      "verify-url": { type: "string", default: process.env.APP_URL },
     },
   });
   const args = ArgsSchema.parse(values);
 
-  const seating = buildSeating(readFileSync(args.input, "utf8"), env.ALLOWED_EMAIL_DOMAINS, env.EMAIL_HMAC_PEPPER);
-  if (args.target === "redis") await writeRedis(seating, args["expires-at"]);
+  const csv = readFileSync(args.input, "utf8");
+  const seating = buildSeating(csv, env.ALLOWED_EMAIL_DOMAINS, env.EMAIL_HMAC_PEPPER);
+  if (args.target === "redis") await writeRedis(csv, seating, args["expires-at"], args["verify-url"]);
   else writeMemory(seating, env.SEATING_MEMORY_FILE);
 
   const tables = new Set(seating.values()).size;
-  console.log(JSON.stringify({ event: "seating.imported", target: args.target, attendees: seating.size, tables }));
+  const verified = args.target === "redis";
+  console.log(JSON.stringify({ event: "seating.imported", target: args.target, attendees: seating.size, tables, verified }));
 }
 
 main().catch((error: unknown) => {
