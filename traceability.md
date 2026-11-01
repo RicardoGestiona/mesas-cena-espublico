@@ -35,3 +35,6 @@
 - Causa final del 500: `SEATING_STORE=memory` en Vercel (el runtime lo rechaza en producción a propósito). También se recreó `EMAIL_HMAC_PEPPER` (salía como "Needs Attention"). Tras redeploy: `200 not_found` uniforme (Redis vacío).
 - Lección: los cambios de variables necesitan redeploy, y el diagnóstico más rápido es `lookup.failed.invalidEnv` en los Runtime Logs.
 - Región: el ajuste del panel no se aplicaba (seguía `iad1`) → `fra1` fijada en `vercel.ts` (`@vercel/config`).
+
+## 2026-11-01 — Primera importación a producción
+- 500 sintéticos importados a Upstash con `"verified":true` (caducan el 2026-11-15). En producción (`fra1`), las mesas coinciden con el CSV (27, 18, 2), funciona la normalización (mayúsculas/espacios), un email desconocido y un dominio ajeno dan `not_found` y la UI móvil muestra el plano sin errores de consola.
