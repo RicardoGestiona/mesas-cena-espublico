@@ -137,6 +137,17 @@ describe("POST /api/lookup", () => {
       expect(JSON.stringify(log)).not.toContain("short-secret-value");
     });
 
+    it("accepts Vercel's prefixed credential names (Custom Prefix cannot be empty)", async () => {
+      const log = await failedLog({
+        SEATING_STORE: "redis",
+        EMAIL_HMAC_PEPPER: "short",
+        KV_REST_API_TOKEN_KV_REST_API_URL: "https://example.upstash.io",
+        KV_REST_API_TOKEN_KV_REST_API_TOKEN: "prefixed-token-value",
+      });
+      expect(log.invalidEnv).toBe("EMAIL_HMAC_PEPPER");
+      expect(JSON.stringify(log)).not.toContain("prefixed-token-value");
+    });
+
     it("accepts Upstash console variable names as credentials", async () => {
       const log = await failedLog({
         SEATING_STORE: "redis",

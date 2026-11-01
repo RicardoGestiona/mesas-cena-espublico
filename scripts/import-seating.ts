@@ -15,6 +15,7 @@ import { parseArgs } from "node:util";
 import { Redis } from "@upstash/redis";
 import { z } from "zod";
 import { EnvSchema } from "../src/server/env-schema";
+import { resolveRedisCredentials } from "../src/server/redis-credentials";
 import { ImportError, buildSeating, sampleProbes } from "../src/server/seating-import";
 import { publishSeating, type SeatingStoreAdmin } from "../src/server/seating-publish";
 import { VerifyUrlSchema, createHttpVerifier } from "../src/server/seating-verify";
@@ -51,8 +52,12 @@ async function writeRedis(
   const expireUnix = Math.floor(new Date(expiresAt).getTime() / 1000);
   if (expireUnix <= Date.now() / 1000) throw new ImportError("--expires-at must be in the future");
 
+  const credentials = resolveRedisCredentials(process.env);
+  if (!credentials.ok) throw new ImportError(`Redis credentials ${credentials.reason}: ${credentials.field}`);
+  const { url, token } = credentials.credentials;
+
   await publishSeating({
-    store: upstashAdmin(Redis.fromEnv()),
+    store: upstashAdmin(new Redis({ url, token })),
     seating,
     expireUnix,
     probes: sampleProbes(csv),

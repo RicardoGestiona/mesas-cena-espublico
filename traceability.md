@@ -24,3 +24,9 @@
 - Solución: `publishSeating` (store inyectado) hace swap atómico conservando `seating:previous`, verifica E2E contra el despliegue real (`createHttpVerifier`, 3 probes del CSV, mensajes sin emails) y hace rollback automático si falla. `APP_URL`/`--verify-url` es obligatorio para redis (solo https, o http en localhost).
 - Bug encontrado con los tests: en Zod 4 los `refine` se ejecutan aunque `z.url()` haya fallado → `new URL()` lanzaba. Corregido con `URL.canParse`.
 - 59 tests. Mutation testing: quitar la restauración hace fallar 2 tests. Pendiente: probar contra el Redis real cuando estén las credenciales en `.env.local`.
+
+## 2026-11-01 — Credenciales Redis con prefijo
+- Producción respondía 500: la base estaba conectada con el *Custom Prefix* `KV_REST_API_TOKEN` (Vercel no deja dejarlo vacío) → las variables se llamaban `KV_REST_API_TOKEN_KV_REST_API_URL`… y `Redis.fromEnv()` no las encontraba.
+- Solución: `resolveRedisCredentials` (estándar → Upstash → una única pareja con prefijo; si hay ambigüedad, error) + cliente explícito `new Redis({url, token})` en runtime y en el script. Logs con nombres de variables, nunca valores.
+- `lookup.failed` ahora incluye `invalidEnv`, y `serverEnv()` informa de todas las variables inválidas en una sola pasada.
+- Verificado contra el Upstash real (PING) con nombres estándar y con prefijo. 69 tests.

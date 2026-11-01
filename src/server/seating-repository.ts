@@ -2,7 +2,7 @@ import "server-only";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { Redis } from "@upstash/redis";
-import { serverEnv } from "./env";
+import { redisClient, serverEnv } from "./env";
 import { HashedSeatingFileSchema, SEATING_HASH_KEY, TableValue } from "./seating-format";
 
 export interface SeatingRepository {
@@ -46,7 +46,7 @@ export function seatingRepository(): SeatingRepository {
     const env = serverEnv();
     repository =
       env.SEATING_STORE === "redis"
-        ? new RedisSeatingRepository(Redis.fromEnv())
+        ? new RedisSeatingRepository(redisClient(env))
         : new MemorySeatingRepository(env.SEATING_MEMORY_FILE);
   }
   return repository;

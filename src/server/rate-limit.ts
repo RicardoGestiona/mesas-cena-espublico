@@ -1,7 +1,7 @@
 import "server-only";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
-import { serverEnv } from "./env";
+import { redisClient, serverEnv } from "./env";
 
 export interface RateLimiter {
   /** Returns true if the request identified by `key` is allowed. */
@@ -11,9 +11,9 @@ export interface RateLimiter {
 class UpstashRateLimiter implements RateLimiter {
   private readonly limiter: Ratelimit;
 
-  constructor(perMinute: number) {
+  constructor(redis: Redis, perMinute: number) {
     this.limiter = new Ratelimit({
-      redis: Redis.fromEnv(),
+      redis,
       limiter: Ratelimit.slidingWindow(perMinute, "1 m"),
       prefix: "rl:lookup",
     });
@@ -50,7 +50,7 @@ export function rateLimiter(): RateLimiter {
     const env = serverEnv();
     limiter =
       env.SEATING_STORE === "redis"
-        ? new UpstashRateLimiter(env.RATE_LIMIT_PER_MINUTE)
+        ? new UpstashRateLimiter(redisClient(env), env.RATE_LIMIT_PER_MINUTE)
         : new MemoryRateLimiter(env.RATE_LIMIT_PER_MINUTE);
   }
   return limiter;
