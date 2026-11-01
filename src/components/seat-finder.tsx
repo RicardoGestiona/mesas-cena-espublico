@@ -72,7 +72,7 @@ function TablemateList({ tablemates }: { tablemates: Tablemate[] }) {
           ) : null
         }
       />
-      <Card className="gap-0 rounded-2xl py-0 shadow-[0_1px_2px_rgb(0_0_0/0.04)] ring-0">
+      <Card className="gap-0 rounded-2xl py-0 shadow-[0_1px_2px_rgb(0_0_0/0.04)] ring-0 landscape:max-h-[calc(100dvh-4.5rem)] landscape:overflow-y-auto landscape:overscroll-contain">
         {tablemates.length === 0 ? (
           <p className="px-4 py-4 text-[15px] text-muted-foreground">Aún no hay más asistentes asignados a tu mesa.</p>
         ) : (
@@ -145,7 +145,8 @@ function Result({ table, tablemates, onBack }: { table: number; tablemates: Tabl
           </Card>
         </section>
 
-        <div className="landscape:col-start-2 landscape:row-start-2 animate-in fade-in slide-in-from-bottom-3 fill-mode-both delay-300 duration-700 motion-reduce:animate-none">
+        {/* Landscape: pinned while the plan scrolls; the list scrolls on its own if taller than the viewport. */}
+        <div className="landscape:sticky landscape:top-4 landscape:col-start-2 landscape:row-start-2 animate-in fade-in slide-in-from-bottom-3 fill-mode-both delay-300 duration-700 motion-reduce:animate-none">
           <TablemateList tablemates={tablemates} />
         </div>
       </div>
