@@ -14,3 +14,7 @@
 - Refactor para poder testear: inyección de dependencias en `lookupTable`; parseo/validación del CSV extraído a `src/server/seating-import.ts`.
 - `@types/node` alineado a ^24 (el scaffold traía ^20 y chocaba con el peer de Vitest; el runtime es Node 24).
 - Validado con mutation testing manual: saltarse la lectura del almacén y registrar el email en logs hacen fallar el test correspondiente.
+
+## 2026-11-01 — Producción + QR
+- Desplegado en https://mesas-cena-espublico.vercel.app. Verificado en producción: cabeceras de seguridad, CSP con nonce sin violaciones en navegador, rutas privadas 404. `/api/lookup` devuelve 500 genérico: faltan variables de producción/Redis o redeploy (pendiente de Ricardo).
+- `scripts/generate-qr.ts` (solo URLs https, corrección de errores H). QR en `print/`, decodificado con jsQR → URL correcta (versión 5).

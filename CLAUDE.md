@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Web para la cena de empresa de un grupo de empresas (~500 comensales, mesas de 10 asignadas por sorteo). En la puerta solo hay **un QR** que abre la web; el asistente introduce **su email corporativo** y ve **su número de mesa resaltado en el plano de sala** (nunca el asiento). Empresa tecnológica: la arquitectura y la privacidad deben ser impecables.
 
+Producción: https://mesas-cena-espublico.vercel.app (Vercel, deploy automático desde `main` de `RicardoGestiona/mesas-cena-espublico`).
+
 Stack: Next.js 16 (App Router, Turbopack) en Vercel · TypeScript estricto · Zod 4 · Tailwind 4 · Upstash Redis (vía Vercel Marketplace) en producción.
 
 **Next.js 16 tiene cambios incompatibles con versiones anteriores** (`proxy.ts` sustituye a middleware, `LayoutProps` generado, etc.). Antes de escribir código Next, consulta `node_modules/next/dist/docs/` (ver `AGENTS.md`).
@@ -17,6 +19,7 @@ npm run dev                 # dev server (SEATING_STORE=memory)
 npm run typecheck           # next typegen && tsc --noEmit (typegen is required for LayoutProps)
 npm run lint
 npm run build
+npm run qr -- --url https://mesas-cena-espublico.vercel.app   # entrance QR -> print/ (SVG + 2048px PNG, ECC H)
 npm test                    # vitest run (all suites)
 npx vitest run tests/lookup.test.ts            # single file
 npx vitest run -t "rate-limits per client IP"  # single test by name
@@ -62,4 +65,4 @@ UTF-8, separado por comas, sin comillas, con cabecera. Columnas obligatorias: `e
 
 ## Pendiente
 
-Provisionar Upstash Redis en Vercel · plano real de la sala · dominios reales del grupo · fecha de caducidad · generar el QR con la URL de producción.
+Provisionar Upstash Redis en Vercel · plano real de la sala · dominios reales del grupo · fecha de caducidad.
