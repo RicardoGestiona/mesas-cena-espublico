@@ -17,12 +17,21 @@ npm run dev                 # dev server (SEATING_STORE=memory)
 npm run typecheck           # next typegen && tsc --noEmit (typegen is required for LayoutProps)
 npm run lint
 npm run build
+npm test                    # vitest run (all suites)
+npx vitest run tests/lookup.test.ts            # single file
+npx vitest run -t "rate-limits per client IP"  # single test by name
 npm run seating:synthetic   # 500 synthetic attendees + simulated draw -> data/private/attendees.synthetic.csv
 npm run seating:import -- --input <csv> --target memory
 npm run seating:import -- --input <csv> --target redis --expires-at 2026-12-20T23:59:00+01:00
 ```
 
-Los scripts leen `.env.local` (ver `.env.example`). Aún no hay suite de tests.
+Los scripts leen `.env.local` (ver `.env.example`).
+
+## Tests (`tests/`, Vitest)
+
+- Los invariantes de privacidad están cubiertos por tests: un único `not_found` byte a byte, una sola lectura del almacén en todos los casos, latencia mínima, límite de peticiones por IP, logs sin email/hash/IP, el import no deja texto en claro y fallo seguro (error genérico) si no hay almacén. **Un cambio que rompa uno de estos tests rompe un requisito; no relajar el test.**
+- `tests/api-lookup.test.ts` es de integración sobre el handler real: usa `vi.stubEnv` y `vi.resetModules()` para reconstruir los singletons (`serverEnv`, repositorio y rate limiter) en cada test.
+- `server-only` se sustituye por un stub vacío en `vitest.config.mts`. `lookupTable` admite inyectar `LookupDeps`; la lógica de importación vive en `src/server/seating-import.ts` (sin I/O) y `scripts/import-seating.ts` es solo la CLI.
 
 ## Decisiones de producto
 
@@ -44,7 +53,7 @@ Los scripts leen `.env.local` (ver `.env.example`). Aún no hay suite de tests.
 Recorrido del dato: `CSV (local)` → `scripts/import-seating.ts` (valida todo o nada: emails, dominios, mesas 1..50, duplicados y capacidad ≤10; descarta todas las columnas salvo email/table) → `seating:staging` → `RENAME` atómico a `seating` → `POST /api/lookup` (`src/app/api/lookup/route.ts`: límite de peticiones → Zod → `src/server/lookup.ts`) → `src/components/seat-finder.tsx` (valida la respuesta con Zod) → `FloorPlan`.
 
 - `src/lib/`: código común a cliente, servidor y scripts (`normalizeEmail` es la **única** normalización; si el import y la consulta usaran normalizaciones distintas, las búsquedas fallarían sin dar error).
-- `src/server/`: los módulos de ejecución importan `server-only`. `env-schema.ts`, `seating-format.ts` y `crypto.ts` no lo importan porque también los usan los scripts de `tsx`. No importar módulos con `server-only` desde `scripts/`.
+- `src/server/`: los módulos de ejecución importan `server-only`. `env-schema.ts`, `seating-format.ts`, `seating-import.ts` y `crypto.ts` no lo importan porque también los usan los scripts de `tsx`. No importar módulos con `server-only` desde `scripts/`.
 - `SeatingRepository` y `RateLimiter` tienen implementación `redis` (Upstash, `Redis.fromEnv()` lee `KV_REST_API_*` o `UPSTASH_REDIS_REST_*`) y `memory` (solo dev). `serverEnv()` rechaza `memory` en producción.
 
 ## Formato del CSV del sorteo
@@ -53,4 +62,4 @@ UTF-8, separado por comas, sin comillas, con cabecera. Columnas obligatorias: `e
 
 ## Pendiente
 
-Provisionar Upstash Redis en Vercel · plano real de la sala · dominios reales del grupo · fecha de caducidad · generar el QR con la URL de producción · tests (normalización, import, anti-enumeración).
+Provisionar Upstash Redis en Vercel · plano real de la sala · dominios reales del grupo · fecha de caducidad · generar el QR con la URL de producción.

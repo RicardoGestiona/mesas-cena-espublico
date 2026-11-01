@@ -8,3 +8,9 @@
 - Plano supuesto: 10 filas × 5 mesas en vertical (legible en móvil) con ruta desde la entrada.
 - Generador sintético determinista: 500 asistentes, 5 empresas, dominios `.example`, sorteo simulado.
 - Verificado: typecheck, lint y build limpios; E2E con curl (encontrado, desconocido, dominio ajeno, malformado, payload enorme, 429 a la 11.ª petición) y capturas en móvil (390 px).
+
+## 2026-11-01 — Suite de tests
+- Vitest 5: 37 tests en 4 ficheros (lib, import, servicio de lookup, integración con el handler `/api/lookup`).
+- Refactor para poder testear: inyección de dependencias en `lookupTable`; parseo/validación del CSV extraído a `src/server/seating-import.ts`.
+- `@types/node` alineado a ^24 (el scaffold traía ^20 y chocaba con el peer de Vitest; el runtime es Node 24).
+- Validado con mutation testing manual: saltarse la lectura del almacén y registrar el email en logs hacen fallar el test correspondiente.
