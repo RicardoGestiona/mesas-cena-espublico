@@ -38,3 +38,10 @@
 
 ## 2026-11-01 — Primera importación a producción
 - 500 sintéticos importados a Upstash con `"verified":true` (caducan el 2026-11-15). En producción (`fra1`), las mesas coinciden con el CSV (27, 18, 2), funciona la normalización (mayúsculas/espacios), un email desconocido y un dominio ajeno dan `not_found` y la UI móvil muestra el plano sin errores de consola.
+
+## 2026-11-01 — Compañeros de mesa
+- Decisión de Ricardo: mostrar nombre, apellidos y empresa de los compañeros, sin verificar el email (riesgo de enumeración aceptado y documentado en CLAUDE.md).
+- Formato: `HMAC(email) → {table, tablemates}`, precalculado y sin la propia persona → la consulta sigue siendo una sola lectura, sin oráculo de tiempo. Se aceptan los registros antiguos (número solo) durante la transición.
+- El CSV exige first_name/last_name/company, con validación de caracteres de control/bidi y longitudes. El verificador comprueba también el número de compañeros.
+- Verificado: 78 tests; mesa 27 de los sintéticos idéntica al CSV en local (API + UI móvil).
+- Riesgo operativo detectado: `RATE_LIMIT_PER_MINUTE=10` por IP bloquearía a los asistentes tras el NAT del wifi del local → subir en Vercel (propuesto 120).

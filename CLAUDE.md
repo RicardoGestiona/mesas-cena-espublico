@@ -46,8 +46,8 @@ Los scripts leen `.env.local` (ver `.env.example`); lo que se pasa en la línea 
 
 ## Requisitos de privacidad (invariantes, no negociables)
 
-1. **La respuesta solo contiene `{status, table}`.** Nunca devolver nombres, compañeros de mesa ni otros datos personales.
-2. **No se guardan emails en claro:** solo `HMAC-SHA256(normalizeEmail(email), EMAIL_HMAC_PEPPER)`. Si se rota el pepper, hay que volver a importar.
+1. **La respuesta solo contiene `{status, table, tablemates: [{name, company}]}`.** Los compañeros se proyectan explícitamente a nombre y empresa, sin la propia persona. Nunca emails ni hashes. **Riesgo aceptado por Ricardo (2026-11-01):** sin verificar el email, quien adivine emails corporativos puede sacar nombres y empresas de los asistentes. No añadir más campos personales sin volver a decidirlo.
+2. **No se guardan emails en claro:** la clave es `HMAC-SHA256(normalizeEmail(email), EMAIL_HMAC_PEPPER)` y el valor `{table, tablemates}`, precalculado al importar (una sola lectura por consulta). Si se rota el pepper, hay que volver a importar.
 3. **La consulta se hace siempre en el servidor:** ni las asignaciones ni los hashes llegan nunca al cliente.
 4. **Anti-enumeración:** formato inválido, dominio no permitido y email desconocido devuelven el mismo `not_found`; en todos los casos se calcula el hash y se lee del almacén, y la respuesta tarda como mínimo 250 ms (`MIN_RESPONSE_MS`). Límite de peticiones por IP (`RATE_LIMIT_PER_MINUTE`).
 5. **Logs sin datos personales:** nunca registrar el email, el hash ni la IP. Usar solo `src/server/logger.ts` (JSON).
@@ -56,7 +56,7 @@ Los scripts leen `.env.local` (ver `.env.example`); lo que se pasa en la línea 
 
 ## Arquitectura
 
-Recorrido del dato: `CSV (local)` → `scripts/import-seating.ts` (valida todo o nada: emails, dominios, mesas 1..50, duplicados y capacidad ≤10; descarta todas las columnas salvo email/table) → `src/server/seating-publish.ts`: `seating:staging` con TTL → `MULTI` (`seating`→`seating:previous`, `staging`→`seating`) → verificación E2E contra `APP_URL/api/lookup` con 3 asistentes del CSV (`seating-verify.ts`) → si va bien, se borra `previous`; si falla, se restaura `previous` (o se borra todo si no había) y el script sale con error → `POST /api/lookup` (`src/app/api/lookup/route.ts`: límite de peticiones → Zod → `src/server/lookup.ts`) → `src/components/seat-finder.tsx` (valida la respuesta con Zod) → `FloorPlan`.
+Recorrido del dato: `CSV (local)` → `scripts/import-seating.ts` (valida todo o nada: emails, dominios, mesas 1..50, duplicados, capacidad ≤10 y nombres/empresas; descarta los emails) → `src/server/seating-publish.ts`: `seating:staging` con TTL → `MULTI` (`seating`→`seating:previous`, `staging`→`seating`) → verificación E2E contra `APP_URL/api/lookup` con 3 asistentes del CSV (`seating-verify.ts`) → si va bien, se borra `previous`; si falla, se restaura `previous` (o se borra todo si no había) y el script sale con error → `POST /api/lookup` (`src/app/api/lookup/route.ts`: límite de peticiones → Zod → `src/server/lookup.ts`) → `src/components/seat-finder.tsx` (valida la respuesta con Zod) → `FloorPlan`.
 
 - `src/lib/`: código común a cliente, servidor y scripts (`normalizeEmail` es la **única** normalización; si el import y la consulta usaran normalizaciones distintas, las búsquedas fallarían sin dar error).
 - `src/server/`: los módulos de ejecución importan `server-only`. `env-schema.ts`, `seating-format.ts`, `seating-import.ts`, `seating-publish.ts`, `seating-verify.ts` y `crypto.ts` no lo importan porque también los usan los scripts de `tsx`. No importar módulos con `server-only` desde `scripts/`.
@@ -64,7 +64,7 @@ Recorrido del dato: `CSV (local)` → `scripts/import-seating.ts` (valida todo o
 
 ## Formato del CSV del sorteo
 
-UTF-8, separado por comas, sin comillas, con cabecera. Columnas obligatorias: `email`, `table`. Las demás (`first_name,last_name,company`…) se ignoran. Los datos sintéticos usan dominios ficticios `.example` (RFC 2606).
+UTF-8, separado por comas, sin comillas, con cabecera. Columnas obligatorias: `email`, `table`, `first_name`, `last_name`, `company` (se rechazan valores vacíos, de más de 120 caracteres o con caracteres de control o bidi). El resto se ignora. Los datos sintéticos usan dominios ficticios `.example` (RFC 2606).
 
 ## Pendiente
 
