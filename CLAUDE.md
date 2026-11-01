@@ -58,7 +58,7 @@ Recorrido del dato: `CSV (local)` → `scripts/import-seating.ts` (valida todo o
 
 - `src/lib/`: código común a cliente, servidor y scripts (`normalizeEmail` es la **única** normalización; si el import y la consulta usaran normalizaciones distintas, las búsquedas fallarían sin dar error).
 - `src/server/`: los módulos de ejecución importan `server-only`. `env-schema.ts`, `seating-format.ts`, `seating-import.ts`, `seating-publish.ts`, `seating-verify.ts` y `crypto.ts` no lo importan porque también los usan los scripts de `tsx`. No importar módulos con `server-only` desde `scripts/`.
-- `SeatingRepository` y `RateLimiter` tienen implementación `redis` (Upstash, `Redis.fromEnv()` lee `KV_REST_API_*` o `UPSTASH_REDIS_REST_*`) y `memory` (solo dev). `serverEnv()` rechaza `memory` en producción.
+- `SeatingRepository` y `RateLimiter` tienen implementación `redis` (Upstash, `Redis.fromEnv()` lee `KV_REST_API_*` o `UPSTASH_REDIS_REST_*`). Al conectar la base en Vercel, el *Custom Prefix* debe quedar vacío: con prefijo, las variables se llaman `<PREFIX>_KV_REST_API_URL` y la app responde 500 (`invalidEnv: KV_REST_API_URL+KV_REST_API_TOKEN`) y `memory` (solo dev). `serverEnv()` rechaza `memory` en producción.
 
 ## Formato del CSV del sorteo
 
