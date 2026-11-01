@@ -54,7 +54,7 @@ export function FloorPlan({ highlightedTable }: { highlightedTable: number }) {
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       role="img"
       aria-labelledby="plan-title"
-      className="plan h-auto w-full"
+      className="h-auto w-full"
     >
       <title id="plan-title">{`Plano de la sala con la mesa ${highlightedTable} resaltada`}</title>
 
@@ -64,8 +64,8 @@ export function FloorPlan({ highlightedTable }: { highlightedTable: number }) {
         d={`M ${ENTRANCE_X - ENTRANCE_WIDTH / 2} ${HEIGHT - 8} H 8 V 8 H ${WIDTH - 8} V ${HEIGHT - 8} H ${ENTRANCE_X + ENTRANCE_WIDTH / 2}`}
       />
 
-      <rect className="plan-stage" x={40} y={24} width={WIDTH - 80} height={44} rx={8} />
-      <text className="plan-label" x={WIDTH / 2} y={51} textAnchor="middle">
+      <rect className="plan-stage" x={40} y={24} width={WIDTH - 80} height={44} rx={14} />
+      <text className="plan-label" x={WIDTH / 2} y={46} textAnchor="middle" dominantBaseline="central">
         ESCENARIO
       </text>
 
@@ -85,12 +85,13 @@ export function FloorPlan({ highlightedTable }: { highlightedTable: number }) {
         );
       })}
 
-      <path className="plan-path" d={walkingPath(highlightedTable)} />
+      {/* pathLength normalises the dash animation (draw-on) regardless of route length */}
+      <path className="plan-path" pathLength={1} d={walkingPath(highlightedTable)} />
       <circle className="plan-pulse" cx={target.x} cy={target.y} r={TABLE_RADIUS + 12} />
 
       <circle className="plan-you" cx={ENTRANCE_X} cy={HEIGHT - 8} r={7} />
       <text className="plan-label plan-label--you" x={ENTRANCE_X - 16} y={HEIGHT - 4} textAnchor="end">
-        ENTRADA · ESTÁS AQUÍ
+        ESTÁS AQUÍ
       </text>
     </svg>
   );

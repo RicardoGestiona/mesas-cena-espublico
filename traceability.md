@@ -45,3 +45,9 @@
 - El CSV exige first_name/last_name/company, con validación de caracteres de control/bidi y longitudes. El verificador comprueba también el número de compañeros.
 - Verificado: 78 tests; mesa 27 de los sintéticos idéntica al CSV en local (API + UI móvil).
 - Riesgo operativo detectado: `RATE_LIMIT_PER_MINUTE=10` por IP bloquearía a los asistentes tras el NAT del wifi del local → subir en Vercel (propuesto 120).
+
+## 2026-11-01 — Rediseño de la UI (estética Apple, shadcn/ui)
+- shadcn/ui inicializado (radix-nova): Button, Input, Label, Card, Avatar, Badge, Separator y Spinner. El CLI `shadcn` va en devDependencies (solo aporta `shadcn/tailwind.css` al compilar), así `npm audit --omit=dev` = 0. El `cn()` usa clsx + tailwind-merge (`@/lib/utils`) en lugar del paquete `cn` que mete el CLI.
+- Formulario: campo único con etiqueta flotante y botón circular con flecha dentro del campo (al estilo del inicio de sesión de Apple ID). El error es discreto y se borra al volver a escribir.
+- Resultado: número de mesa en grande, plano en una tarjeta con la ruta que se va dibujando (`pathLength=1`) y compañeros en lista agrupada de iOS con monogramas.
+- Invariantes intactos: misma API/Zod; no se usa `style` en línea (comprobado en el DOM). Verificado: 78 tests, build, UI móvil clara/oscura, encontrado/no encontrado.

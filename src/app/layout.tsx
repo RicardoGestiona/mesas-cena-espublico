@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Geist } from "next/font/google";
+import { Geist } from "next/font/google";
 import "./globals.css";
 
+// Apple devices render the system font (SF Pro); Geist is the fallback elsewhere.
 const sans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const display = Fraunces({ variable: "--font-fraunces", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "¿Dónde me siento? · Cena de empresa",
@@ -13,14 +13,14 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7f3ec" },
-    { media: "(prefers-color-scheme: dark)", color: "#14110f" },
+    { media: "(prefers-color-scheme: light)", color: "#f5f5f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
   ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="es" className={`${sans.variable} ${display.variable} h-full antialiased`}>
+    <html lang="es" className={`${sans.variable} h-full antialiased`}>
       <body className="min-h-full">{children}</body>
     </html>
   );
