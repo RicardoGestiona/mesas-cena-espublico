@@ -51,3 +51,7 @@
 - Formulario: campo único con etiqueta flotante y botón circular con flecha dentro del campo (al estilo del inicio de sesión de Apple ID). El error es discreto y se borra al volver a escribir.
 - Resultado: número de mesa en grande, plano en una tarjeta con la ruta que se va dibujando (`pathLength=1`) y compañeros en lista agrupada de iOS con monogramas.
 - Invariantes intactos: misma API/Zod; no se usa `style` en línea (comprobado en el DOM). Verificado: 78 tests, build, UI móvil clara/oscura, encontrado/no encontrado.
+
+## 2026-11-01 — Límite de peticiones en producción
+- `RATE_LIMIT_PER_MINUTE=120` en Vercel (Production), para que no se bloquee a los asistentes que comparten IP tras el NAT del wifi del local. Comprobado: 15 consultas seguidas desde una IP → 15 `not_found`, ninguna `rate_limited`.
+- El proyecto de Vercel pertenece a una cuenta distinta de la que tiene conectado el MCP de Vercel (`gestionatools`): los cambios en Vercel se hacen desde el panel o con la CLI iniciada en la cuenta dueña.
