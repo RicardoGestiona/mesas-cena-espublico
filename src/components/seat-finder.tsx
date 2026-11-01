@@ -110,15 +110,15 @@ function TablemateList({ tablemates }: { tablemates: Tablemate[] }) {
               {tablemates.map((mate, i) => (
                 <li key={i}>
                   {i > 0 && <Separator className="ml-[4.25rem] w-auto short-landscape:hidden" />}
-                  <div className="flex items-center gap-3 px-4 py-2.5 short-landscape:py-1">
-                    <Avatar className="size-10 after:hidden short-landscape:size-8">
-                      <AvatarFallback className="bg-linear-to-b from-monogram-from to-monogram-to text-[15px] font-medium text-white short-landscape:text-[13px]">
+                  <div className="flex items-center gap-3 px-4 py-2.5 short-landscape:gap-2.5 short-landscape:px-3 short-landscape:py-0.5">
+                    <Avatar className="size-10 after:hidden short-landscape:size-7">
+                      <AvatarFallback className="bg-linear-to-b from-monogram-from to-monogram-to text-[15px] font-medium text-white short-landscape:text-[11px]">
                         {initials(mate.name)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex min-w-0 flex-col">
-                      <span className="truncate text-[17px] leading-snug short-landscape:text-[15px]">{mate.name}</span>
-                      <span className="truncate text-[13px] text-muted-foreground short-landscape:text-xs">{mate.company}</span>
+                      <span className="truncate text-[17px] leading-snug short-landscape:text-[13px]">{mate.name}</span>
+                      <span className="truncate text-[13px] text-muted-foreground short-landscape:text-[11px]">{mate.company}</span>
                     </div>
                   </div>
                 </li>
@@ -168,9 +168,9 @@ function Result({ table, tablemates, onBack }: { table: number; tablemates: Tabl
       <div className="flex flex-col gap-8 landscape:grid landscape:h-[calc(100dvh-4rem)] landscape:grid-cols-[minmax(0,1fr)_auto] landscape:grid-rows-[minmax(0,1fr)] landscape:gap-6">
         <div className="contents landscape:flex landscape:min-h-0 landscape:flex-col landscape:gap-3">
           <header
-            className={`order-1 flex flex-col items-center text-center landscape:grid landscape:grid-cols-[auto_1fr] landscape:items-center landscape:gap-x-4 landscape:px-1 landscape:text-left ${REVEAL}`}
+            className={`order-1 flex flex-col items-center text-center landscape:grid landscape:grid-cols-[auto_1fr] landscape:items-center landscape:gap-x-4 landscape:rounded-2xl landscape:bg-primary landscape:px-5 landscape:py-3 landscape:text-left landscape:text-primary-foreground landscape:shadow-[0_10px_30px_-14px_var(--primary)] ${REVEAL}`}
           >
-            <p className="text-[15px] font-medium text-muted-foreground landscape:col-start-2 landscape:row-start-1 landscape:self-end">
+            <p className="text-[15px] font-medium text-muted-foreground landscape:col-start-2 landscape:row-start-1 landscape:self-end landscape:text-primary-foreground/80">
               Tu mesa
             </p>
             <h1
@@ -181,7 +181,7 @@ function Result({ table, tablemates, onBack }: { table: number; tablemates: Tabl
               <span className="sr-only">Mesa </span>
               {table}
             </h1>
-            <p className="mt-3 text-[15px] text-muted-foreground landscape:col-start-2 landscape:row-start-2 landscape:mt-0 landscape:self-start">
+            <p className="mt-3 text-[15px] text-muted-foreground landscape:col-start-2 landscape:row-start-2 landscape:mt-0 landscape:self-start landscape:text-primary-foreground">
               Fila {row + 1} desde el escenario <span aria-hidden>·</span> {col + 1}ª desde la izquierda
             </p>
           </header>
