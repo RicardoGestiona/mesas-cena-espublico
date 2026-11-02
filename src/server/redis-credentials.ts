@@ -1,4 +1,7 @@
 /**
+ * ADMIN credentials for scripts (import/publish). The runtime never uses them:
+ * it reads the least-privilege RUNTIME_REDIS_* variables (env-schema.ts).
+ *
  * Resolves Upstash REST credentials from the environment, tolerating the
  * Vercel Marketplace "Custom Prefix" (which cannot be left empty and yields
  * names like `<PREFIX>_KV_REST_API_URL`). Shared by runtime and scripts, so no

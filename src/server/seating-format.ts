@@ -10,7 +10,10 @@ import { VENUE } from "../lib/venue";
  * is always a single store read. Emails are never stored.
  */
 
-/** Redis hash holding `{ email_hmac -> JSON(SeatEntry) }`. Swapped atomically on import. */
+/**
+ * Redis hash holding `{ email_hmac -> JSON(SeatEntry) }`. Swapped atomically on import.
+ * Must match the `mesas-seating-reader` ACL key pattern (~seating).
+ */
 export const SEATING_HASH_KEY = "seating";
 
 export const MAX_NAME_LENGTH = 120;

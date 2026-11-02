@@ -15,6 +15,7 @@ class UpstashRateLimiter implements RateLimiter {
     this.limiter = new Ratelimit({
       redis,
       limiter: Ratelimit.slidingWindow(perMinute, "1 m"),
+      // Must match the `mesas-ratelimit` ACL key pattern (~rl:lookup:*).
       prefix: "rl:lookup",
     });
   }
@@ -50,7 +51,7 @@ export function rateLimiter(): RateLimiter {
     const env = serverEnv();
     limiter =
       env.SEATING_STORE === "redis"
-        ? new UpstashRateLimiter(redisClient(env), env.RATE_LIMIT_PER_MINUTE)
+        ? new UpstashRateLimiter(redisClient(env, "ratelimit"), env.RATE_LIMIT_PER_MINUTE)
         : new MemoryRateLimiter(env.RATE_LIMIT_PER_MINUTE);
   }
   return limiter;

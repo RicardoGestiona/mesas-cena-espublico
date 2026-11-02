@@ -125,39 +125,49 @@ describe("POST /api/lookup", () => {
       return JSON.parse(errors.find((l) => l.includes("lookup.failed"))!);
     }
 
-    it("names missing Redis credentials when SEATING_STORE=redis", async () => {
-      const log = await failedLog({ SEATING_STORE: "redis", KV_REST_API_URL: "", KV_REST_API_TOKEN: "" });
-      expect(log).toMatchObject({ errorName: "ConfigError", invalidEnv: "KV_REST_API_URL+KV_REST_API_TOKEN" });
+    const RUNTIME_FIELDS = ["RUNTIME_REDIS_URL", "RUNTIME_REDIS_SEATING_TOKEN", "RUNTIME_REDIS_RATELIMIT_TOKEN"];
+    const RUNTIME_ENV = {
+      RUNTIME_REDIS_URL: "https://example.upstash.io",
+      RUNTIME_REDIS_SEATING_TOKEN: "seating-token-value",
+      RUNTIME_REDIS_RATELIMIT_TOKEN: "ratelimit-token-value",
+    };
+    const invalidEnv = (log: Record<string, unknown>) => String(log.invalidEnv).split(",").sort();
+
+    it("names missing runtime Redis credentials when SEATING_STORE=redis", async () => {
+      const log = await failedLog({ SEATING_STORE: "redis" });
+      expect(log).toMatchObject({ errorName: "ConfigError" });
+      expect(invalidEnv(log)).toEqual([...RUNTIME_FIELDS].sort());
     });
 
     it("reports every invalid variable at once, by name only", async () => {
       const log = await failedLog({ SEATING_STORE: "redis", EMAIL_HMAC_PEPPER: "short-secret-value" });
-      expect(String(log.invalidEnv).split(",").sort()).toEqual(
-        ["EMAIL_HMAC_PEPPER", "KV_REST_API_URL+KV_REST_API_TOKEN"].sort(),
-      );
+      expect(invalidEnv(log)).toEqual(["EMAIL_HMAC_PEPPER", ...RUNTIME_FIELDS].sort());
       expect(JSON.stringify(log)).not.toContain("short-secret-value");
     });
 
-    it("accepts Vercel's prefixed credential names (Custom Prefix cannot be empty)", async () => {
+    it("never falls back to admin credentials (least privilege)", async () => {
       const log = await failedLog({
         SEATING_STORE: "redis",
-        EMAIL_HMAC_PEPPER: "short",
+        KV_REST_API_URL: "https://example.upstash.io",
+        KV_REST_API_TOKEN: "admin-token-value",
         KV_REST_API_TOKEN_KV_REST_API_URL: "https://example.upstash.io",
-        KV_REST_API_TOKEN_KV_REST_API_TOKEN: "prefixed-token-value",
+        KV_REST_API_TOKEN_KV_REST_API_TOKEN: "prefixed-admin-token-value",
+        UPSTASH_REDIS_REST_URL: "https://example.upstash.io",
+        UPSTASH_REDIS_REST_TOKEN: "upstash-admin-token-value",
       });
-      expect(log.invalidEnv).toBe("EMAIL_HMAC_PEPPER");
-      expect(JSON.stringify(log)).not.toContain("prefixed-token-value");
+      expect(invalidEnv(log)).toEqual([...RUNTIME_FIELDS].sort());
+      expect(JSON.stringify(log)).not.toContain("admin-token-value");
     });
 
-    it("accepts Upstash console variable names as credentials", async () => {
-      const log = await failedLog({
-        SEATING_STORE: "redis",
-        EMAIL_HMAC_PEPPER: "short",
-        UPSTASH_REDIS_REST_URL: "https://example.upstash.io",
-        UPSTASH_REDIS_REST_TOKEN: "token-value",
-      });
+    it("accepts the least-privilege runtime credentials without logging them", async () => {
+      const log = await failedLog({ SEATING_STORE: "redis", EMAIL_HMAC_PEPPER: "short", ...RUNTIME_ENV });
       expect(log.invalidEnv).toBe("EMAIL_HMAC_PEPPER");
       expect(JSON.stringify(log)).not.toContain("token-value");
+    });
+
+    it("rejects blank runtime credentials by name", async () => {
+      const log = await failedLog({ SEATING_STORE: "redis", ...RUNTIME_ENV, RUNTIME_REDIS_RATELIMIT_TOKEN: "   " });
+      expect(log.invalidEnv).toBe("RUNTIME_REDIS_RATELIMIT_TOKEN");
     });
   });
 });

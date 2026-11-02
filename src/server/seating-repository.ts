@@ -52,7 +52,7 @@ export function seatingRepository(): SeatingRepository {
     const env = serverEnv();
     repository =
       env.SEATING_STORE === "redis"
-        ? new RedisSeatingRepository(redisClient(env))
+        ? new RedisSeatingRepository(redisClient(env, "seating"))
         : new MemorySeatingRepository(env.SEATING_MEMORY_FILE);
   }
   return repository;
