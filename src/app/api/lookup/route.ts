@@ -10,6 +10,22 @@ const MAX_BODY_BYTES = 1024;
 
 type ApiBody = LookupResult | { status: "rate_limited" } | { status: "error" };
 
+/**
+ * Only same-origin JSON calls are processed. A cross-site page cannot send
+ * `application/json` without a CORS preflight (which fails: no ACAO), and
+ * `Sec-Fetch-Site` rejects cross-site browser requests explicitly. Checked
+ * BEFORE the rate limiter so third-party pages opened on the venue wifi cannot
+ * burn the shared NAT IP's budget. Independent of the email: no oracle.
+ * Non-browser clients (import verifier) send no Sec-Fetch-Site and pass.
+ */
+function rejectionReason(request: Request): "content_type" | "cross_site" | null {
+  const contentType = request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase();
+  if (contentType !== "application/json") return "content_type";
+  const site = request.headers.get("sec-fetch-site");
+  if (site !== null && site !== "same-origin" && site !== "none") return "cross_site";
+  return null;
+}
+
 function clientKey(request: Request): string {
   // On Vercel, x-forwarded-for is set by the platform; first entry is the client.
   return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -28,6 +44,12 @@ export async function POST(request: Request): Promise<Response> {
   const requestId = randomUUID();
 
   try {
+    const rejected = rejectionReason(request);
+    if (rejected) {
+      logger.warn("lookup.rejected", { requestId, reason: rejected });
+      return respond(startedAt, { status: "error" }, 403);
+    }
+
     if (!(await rateLimiter().allow(clientKey(request)))) {
       logger.warn("lookup.rate_limited", { requestId });
       return respond(startedAt, { status: "rate_limited" }, 429);

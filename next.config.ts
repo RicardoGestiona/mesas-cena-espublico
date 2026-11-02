@@ -10,6 +10,7 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), interest-cohort=()" },
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
 ];
 
 const nextConfig: NextConfig = {
@@ -32,6 +33,7 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "Cache-Control", value: "no-store" },
           { key: "Content-Security-Policy", value: "default-src 'none'; frame-ancestors 'none'" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
         ],
       },
     ];
