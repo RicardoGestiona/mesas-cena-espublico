@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local-only security analysis (gitignored; has its own tsconfig).
+    "soc/**",
   ]),
 ]);
 

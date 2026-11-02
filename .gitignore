@@ -24,3 +24,6 @@ next-env.d.ts
 coverage/
 npm-debug.log*
 .playwright-mcp/
+
+# Local-only security analysis (public repo: never commit)
+soc/

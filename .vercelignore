@@ -3,3 +3,4 @@ data/
 !.env.example
 CLAUDE.local.md
 docs/history/
+soc/
