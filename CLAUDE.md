@@ -29,11 +29,11 @@ npx vitest run tests/lookup.test.ts            # single file
 npx vitest run -t "rate-limits per client IP"  # single test by name
 npm run seating:synthetic   # 500 synthetic attendees + simulated draw -> data/private/attendees.synthetic.csv
 npm run seating:import -- --input <csv> --target memory
-EMAIL_HMAC_PEPPER='<prod pepper>' ALLOWED_EMAIL_DOMAINS='<prod domains>' \
-  npm run seating:import -- --input <csv> --target redis --expires-at 2026-12-20T23:59:00+01:00   # verifies against APP_URL
+npm run seating:import -- --input <csv> --target redis --secrets-file .env.production.local \
+  --expires-at 2026-12-20T23:59:00+01:00   # verifies against APP_URL
 ```
 
-Los scripts leen `.env.local` (ver `.env.example`); lo que se pasa en la línea de comandos tiene prioridad. **`.env.local` contiene el pepper de DESARROLLO**: para importar a Redis hay que pasar siempre el de producción en la línea de comandos. Si no coincide, la verificación E2E lo detecta (`not_found`) y hace rollback.
+Los scripts leen `.env.local` (ver `.env.example`), que contiene el pepper de **DESARROLLO**. Para importar a Redis es obligatorio `--secrets-file` con los valores de producción. Ese fichero tiene prioridad sobre `.env.local` y debe definir él mismo `EMAIL_HMAC_PEPPER` y `ALLOWED_EMAIL_DOMAINS`. **Nunca pases secretos en la línea de comandos**, porque quedan en el historial de la shell. El fichero se crea fuera del historial (editor o gestor de contraseñas), queda gitignored por `.env.*` y se borra después del import. Las variables *Sensitive* de Vercel se descargan vacías con `vercel env pull`. Si el pepper no coincide, la verificación E2E lo detecta (`not_found`) y hace rollback.
 
 ## Tests (`tests/`, Vitest)
 
