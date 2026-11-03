@@ -44,6 +44,7 @@ Los scripts leen `.env.local` (ver `.env.example`), que contiene el pepper de **
 ## Decisiones de producto
 
 - Solo se pide email, sin verificación (OTP descartado): ver la mesa de otra persona no se considera sensible.
+- Cláusula informativa (RGPD art. 13) visible bajo el email, con la casilla «He leído la información sobre protección de datos». La base jurídica es el interés legítimo, no el consentimiento, así que no se guarda ninguna prueba. El texto y los datos del responsable están en `src/lib/privacy-notice.ts`, y `tests/privacy-notice.test.ts` impide desplegar placeholders. La API exige `privacyNoticeAccepted: true` (`src/lib/lookup-request.ts`, el contrato que comparten la UI, la ruta y el verificador del import); si falta, devuelve el `not_found` uniforme.
 - Plano supuesto (pendiente del plano real): sala rectangular vertical, escenario arriba, entrada abajo, 10 filas × 5 mesas, numeradas por filas desde el escenario y de izquierda a derecha. La configuración está en `src/lib/venue.ts`; el SVG en `src/components/floor-plan.tsx` dibuja la ruta entrada → pasillo → mesa.
 
 ## Requisitos de privacidad (invariantes, no negociables)
@@ -58,7 +59,7 @@ Los scripts leen `.env.local` (ver `.env.example`), que contiene el pepper de **
 
 ## Arquitectura
 
-Recorrido del dato: `CSV (local)` → `scripts/import-seating.ts` (valida todo o nada: emails, dominios, mesas 1..50, duplicados, capacidad ≤10 y nombres/empresas; descarta los emails) → `src/server/seating-publish.ts`: `seating:staging` con TTL → `MULTI` (`seating`→`seating:previous`, `staging`→`seating`) → verificación E2E contra `APP_URL/api/lookup` con 3 asistentes del CSV (`seating-verify.ts`) → si va bien, se borra `previous`; si falla, se restaura `previous` (o se borra todo si no había) y el script sale con error → `POST /api/lookup` (`src/app/api/lookup/route.ts`: límite de peticiones → Zod → `src/server/lookup.ts`) → `src/components/seat-finder.tsx` (valida la respuesta con Zod) → `FloorPlan`.
+Recorrido del dato: `CSV (local)` → `scripts/import-seating.ts` (valida todo o nada: emails, dominios, mesas 1..50, duplicados, capacidad ≤10 y nombres/empresas; descarta los emails) → `src/server/seating-publish.ts`: `seating:staging` con TTL → `MULTI` (`seating`→`seating:previous`, `staging`→`seating`) → verificación E2E contra `APP_URL/api/lookup` con 3 asistentes del CSV (`seating-verify.ts`) → si va bien, se borra `previous`; si falla, se restaura `previous` (o se borra todo si no había) y el script sale con error → `POST /api/lookup` (`src/app/api/lookup/route.ts`: límite de peticiones → Zod (`LookupRequestSchema`) → `src/server/lookup.ts`) → `src/components/seat-finder.tsx` (valida la respuesta con Zod) → `FloorPlan`.
 
 - `src/lib/`: código común a cliente, servidor y scripts (`normalizeEmail` es la **única** normalización; si el import y la consulta usaran normalizaciones distintas, las búsquedas fallarían sin dar error).
 - `src/server/`: los módulos de ejecución importan `server-only`. `env-schema.ts`, `seating-format.ts`, `seating-import.ts`, `seating-publish.ts`, `seating-verify.ts` y `crypto.ts` no lo importan porque también los usan los scripts de `tsx`. No importar módulos con `server-only` desde `scripts/`.

@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { ConfigError } from "@/server/env";
 import { logger } from "@/server/logger";
-import { LookupRequestSchema, lookupTable, type LookupResult } from "@/server/lookup";
+import { LookupRequestSchema } from "@/lib/lookup-request";
+import { lookupTable, type LookupResult } from "@/server/lookup";
 import { rateLimiter } from "@/server/rate-limit";
 
 /** Uniform minimum latency so response time leaks nothing about the lookup outcome. */
@@ -64,6 +65,7 @@ export async function POST(request: Request): Promise<Response> {
         json = null;
       }
     }
+    // A missing privacy-notice acknowledgement is just another invalid body: same store read, same `not_found`.
     const parsed = LookupRequestSchema.safeParse(json);
     const result = await lookupTable(parsed.success ? parsed.data.email : "");
 

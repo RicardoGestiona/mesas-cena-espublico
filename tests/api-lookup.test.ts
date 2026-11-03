@@ -28,6 +28,8 @@ function request(body: string, ip = `10.0.0.${++ipCounter}`): Request {
 }
 
 const json = (value: unknown) => JSON.stringify(value);
+/** A well-formed body, as sent by the UI once the privacy notice is acknowledged. */
+const lookup = (email: unknown) => json({ email, privacyNoticeAccepted: true });
 
 describe("POST /api/lookup", () => {
   let POST: PostHandler;
@@ -37,7 +39,7 @@ describe("POST /api/lookup", () => {
   });
 
   it("returns only status and table for a known attendee", async () => {
-    const response = await POST(request(json({ email: LUCIA })));
+    const response = await POST(request(lookup(LUCIA)));
     expect(response.status).toBe(200);
     // SAMPLE_CSV puts Lucía alone at table 7.
     expect(await response.json()).toStrictEqual({ status: "found", table: 7, tablemates: [] });
@@ -46,14 +48,18 @@ describe("POST /api/lookup", () => {
 
   it("answers every miss with a byte-identical body and status", async () => {
     const misses = [
-      json({ email: "nadie@nexodigital.example" }),
-      json({ email: "lucia.garcia@gmail.com" }),
-      json({ email: "not-an-email" }),
-      json({ email: 42 }),
+      lookup("nadie@nexodigital.example"),
+      lookup("lucia.garcia@gmail.com"),
+      lookup("not-an-email"),
+      lookup(42),
       json({ wrong: "shape" }),
+      // Known attendee, but the privacy notice was not acknowledged.
+      json({ email: LUCIA }),
+      json({ email: LUCIA, privacyNoticeAccepted: false }),
+      json({ email: LUCIA, privacyNoticeAccepted: "true" }),
       "not json",
       "",
-      json({ email: `${"a".repeat(2000)}@nexodigital.example` }),
+      lookup(`${"a".repeat(2000)}@nexodigital.example`),
     ];
     const results = await Promise.all(
       misses.map(async (body) => {
@@ -65,7 +71,7 @@ describe("POST /api/lookup", () => {
   });
 
   it("enforces the minimum latency on hits and misses alike", async () => {
-    for (const body of [json({ email: LUCIA }), json({ email: "nadie@nexodigital.example" }), "garbage"]) {
+    for (const body of [lookup(LUCIA), lookup("nadie@nexodigital.example"), "garbage"]) {
       const startedAt = performance.now();
       await POST(request(body));
       // Small tolerance for timer coarseness.
@@ -76,12 +82,12 @@ describe("POST /api/lookup", () => {
   it("rate-limits per client IP and keeps other IPs unaffected", async () => {
     POST = await loadRoute({ RATE_LIMIT_PER_MINUTE: "3" });
     const statuses = await Promise.all(
-      Array.from({ length: 5 }, () => POST(request(json({ email: LUCIA }), "198.51.100.7")).then((r) => r.status)),
+      Array.from({ length: 5 }, () => POST(request(lookup(LUCIA), "198.51.100.7")).then((r) => r.status)),
     );
     expect(statuses.filter((s) => s === 200)).toHaveLength(3);
     expect(statuses.filter((s) => s === 429)).toHaveLength(2);
 
-    const other = await POST(request(json({ email: LUCIA }), "198.51.100.8"));
+    const other = await POST(request(lookup(LUCIA), "198.51.100.8"));
     expect(other.status).toBe(200);
   });
 
@@ -90,8 +96,8 @@ describe("POST /api/lookup", () => {
     vi.spyOn(console, "log").mockImplementation((line: unknown) => void lines.push(String(line)));
     vi.spyOn(console, "error").mockImplementation((line: unknown) => void lines.push(String(line)));
 
-    await POST(request(json({ email: LUCIA }), "192.0.2.55"));
-    await POST(request(json({ email: "nadie@nexodigital.example" }), "192.0.2.55"));
+    await POST(request(lookup(LUCIA), "192.0.2.55"));
+    await POST(request(lookup("nadie@nexodigital.example"), "192.0.2.55"));
 
     const output = lines.join("\n");
     expect(lines.length).toBeGreaterThan(0);
@@ -107,7 +113,7 @@ describe("POST /api/lookup", () => {
     vi.spyOn(console, "error").mockImplementation((line: unknown) => void errors.push(String(line)));
     vi.spyOn(console, "log").mockImplementation(() => undefined);
 
-    const response = await POST(request(json({ email: LUCIA })));
+    const response = await POST(request(lookup(LUCIA)));
     expect(response.status).toBe(500);
     expect(await response.json()).toStrictEqual({ status: "error" });
     expect(errors.join("\n")).not.toContain("/nonexistent");
@@ -119,7 +125,7 @@ describe("POST /api/lookup", () => {
       POST = await loadRoute(env);
       const errors: string[] = [];
       vi.spyOn(console, "error").mockImplementation((line: unknown) => void errors.push(String(line)));
-      const response = await POST(request(json({ email: LUCIA })));
+      const response = await POST(request(lookup(LUCIA)));
       expect(response.status).toBe(500);
       expect(await response.json()).toStrictEqual({ status: "error" });
       return JSON.parse(errors.find((l) => l.includes("lookup.failed"))!);

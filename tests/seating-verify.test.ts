@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { LookupRequestSchema } from "@/lib/lookup-request";
 import { buildSeating, sampleProbes } from "@/server/seating-import";
 import { VerifyUrlSchema, createHttpVerifier } from "@/server/seating-verify";
 import { SAMPLE_CSV, TEST_DOMAINS, TEST_PEPPER } from "./helpers";
@@ -28,6 +29,10 @@ describe("createHttpVerifier (unit)", () => {
     );
     expect(await createHttpVerifier(BASE, fetchImpl)(PROBES)).toEqual({ ok: true });
     expect(fetchImpl).toHaveBeenCalledWith(`${BASE}/api/lookup`, expect.objectContaining({ method: "POST" }));
+    // Probes must satisfy the API contract (incl. the privacy-notice acknowledgement) or they would read as not_found.
+    for (const [, init] of vi.mocked(fetchImpl).mock.calls) {
+      expect(LookupRequestSchema.safeParse(JSON.parse(String(init?.body))).success).toBe(true);
+    }
   });
 
   it.each([

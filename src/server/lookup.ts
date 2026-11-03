@@ -7,10 +7,6 @@ import { serverEnv, type ServerEnv } from "./env";
 import type { Tablemate } from "./seating-format";
 import { seatingRepository, type SeatingRepository } from "./seating-repository";
 
-export const LookupRequestSchema = z.object({
-  email: z.string().max(254),
-});
-
 export type LookupResult = { status: "found"; table: number; tablemates: Tablemate[] } | { status: "not_found" };
 
 const NOT_FOUND: LookupResult = { status: "not_found" };
