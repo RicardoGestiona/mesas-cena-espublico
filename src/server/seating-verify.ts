@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { lookupRequestBody } from "../lib/lookup-request";
 import type { Probe } from "./seating-import";
 import type { Verifier } from "./seating-publish";
 
@@ -38,7 +39,7 @@ export function createHttpVerifier(baseUrl: string, fetchImpl: typeof fetch = fe
       const response = await fetchImpl(endpoint, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email: probe.email }),
+        body: lookupRequestBody(probe.email),
         cache: "no-store",
       });
       const parsed = LookupResponse.safeParse(await response.json().catch(() => null));

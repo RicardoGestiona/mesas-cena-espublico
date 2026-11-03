@@ -3,6 +3,8 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { ArrowRight, ChevronLeft, LockKeyhole } from "lucide-react";
 import { z } from "zod";
+import { lookupRequestBody } from "@/lib/lookup-request";
+import { PRIVACY_NOTICE, PRIVACY_NOTICE_ACK_LABEL } from "@/lib/privacy-notice";
 import { tablePosition } from "@/lib/venue";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -207,18 +209,22 @@ function Result({ table, tablemates, onBack }: { table: number; tablemates: Tabl
 export function SeatFinder() {
   const inputId = useId();
   const messageId = useId();
+  const noticeId = useId();
   const [email, setEmail] = useState("");
+  // Kept on "Buscar otro email": the notice was already read in this visit.
+  const [noticeAccepted, setNoticeAccepted] = useState(false);
   const [state, setState] = useState<ViewState>({ kind: "idle" });
+  const canSubmit = email.trim() !== "" && noticeAccepted;
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (state.kind === "loading" || email.trim() === "") return;
+    if (state.kind === "loading" || !canSubmit) return;
     setState({ kind: "loading" });
     try {
       const response = await fetch("/api/lookup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: lookupRequestBody(email),
         cache: "no-store",
       });
       const parsed = ApiResponseSchema.safeParse(await response.json());
@@ -293,7 +299,7 @@ export function SeatFinder() {
           <Button
             type="submit"
             size="icon"
-            disabled={loading || email.trim() === ""}
+            disabled={loading || !canSubmit}
             aria-label="Ver mi mesa"
             className="absolute top-1/2 right-2.5 size-9 -translate-y-1/2 rounded-full transition-all duration-300 active:not-aria-[haspopup]:-translate-y-1/2 active:scale-95 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
           >
@@ -308,12 +314,36 @@ export function SeatFinder() {
             </span>
           ) : null}
         </p>
-      </form>
 
-      <footer className="mt-auto flex items-start justify-center gap-2 px-6 pt-10 text-center text-xs leading-relaxed text-muted-foreground">
-        <LockKeyhole className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-        <p>Tu email solo se usa para buscar tu mesa. No se guarda ni se registra.</p>
-      </footer>
+        <div className="flex flex-col gap-4 px-4">
+          <div className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
+            <LockKeyhole className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+            <p id={noticeId}>
+              Para mostrarte tu mesa usamos tu email corporativo, que no guardamos en claro. Verás tu número de mesa y el
+              nombre, apellidos y empresa de tus compañeros de mesa, y ellos verán los tuyos. Los datos se borran
+              automáticamente el {PRIVACY_NOTICE.deletionDate}. Responsable: {PRIVACY_NOTICE.controller}. Puedes ejercer
+              tus derechos u oponerte a que se muestre tu nombre en{" "}
+              <a
+                href={`mailto:${PRIVACY_NOTICE.rightsContactEmail}`}
+                className="underline underline-offset-2 hover:text-foreground"
+              >
+                {PRIVACY_NOTICE.rightsContactEmail}
+              </a>
+              . Nunca te pediremos contraseñas.
+            </p>
+          </div>
+          <label className="flex cursor-pointer items-start gap-3 text-[15px] leading-snug">
+            <input
+              type="checkbox"
+              checked={noticeAccepted}
+              onChange={(e) => setNoticeAccepted(e.target.checked)}
+              aria-describedby={noticeId}
+              className="mt-px size-5 shrink-0 cursor-pointer accent-primary"
+            />
+            <span>{PRIVACY_NOTICE_ACK_LABEL}</span>
+          </label>
+        </div>
+      </form>
     </div>
   );
 }
