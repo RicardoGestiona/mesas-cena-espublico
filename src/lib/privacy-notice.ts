@@ -4,8 +4,8 @@
  * Placeholders (`<...>`) are rejected by tests/privacy-notice.test.ts so they never ship.
  */
 export const PRIVACY_NOTICE = {
-  controller: "<RESPONSABLE>",
-  rightsContactEmail: "<CONTACTO_DPO>",
+  controller: "ESPUBLICO SERVICIOS PARA LA ADMINISTRACIÓN, S.A.",
+  rightsContactEmail: "dpd@espublico.com",
   /** Must match the `--expires-at` of the production import. */
   deletionDate: "28/11/2026",
 } as const;
