@@ -60,3 +60,9 @@
 - Simula el peor caso: todo el público en el wifi del local (una IP por el NAT) en el mismo minuto.
 - Con 120/min: 120 `200` y 380 `429`. Con `RATE_LIMIT_PER_MINUTE=600` (tras redeploy): 500/500 `200`, total 2,3 s, p50 1,6 s, p99 2,2 s, sin errores.
 - Pendiente: volver a 120/min (y redeploy) después de la cena; 600/min solo se justifica durante el evento.
+
+## 2026-11-16 — CSV de RR. HH. para cambios de última hora
+- Decisión de Ricardo: RR. HH. prepara el listado y Ricardo lo publica con `seating:import`. Descartados el panel `/admin` en la web pública (metería un token de escritura en el runtime y rompería el mínimo privilegio) y un segundo proyecto de Vercel de administración (coste y plazo).
+- El parser acepta el CSV de Excel en español: `;` o `,` detectado por la cabecera, comillas RFC 4180 y filas vacías `;;;;`. Rechaza ficheros que no son UTF-8 (`U+FFFD`), que antes habrían publicado nombres corruptos sin dar error.
+- `--dry-run` (`validateSeating`) lista todos los errores (línea + regla, sin valores) sin escribir en ningún almacén. Verificado con los 500 sintéticos: 500/50 sin errores; con `;`, comillas y un email roto → 1 error y exit 1.
+- Diseño y plan en `docs/superpowers/`.
