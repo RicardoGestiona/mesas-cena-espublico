@@ -117,7 +117,35 @@ interface Attendee {
 const byName = (a: Tablemate, b: Tablemate) =>
   a.name.localeCompare(b.name, "es") || a.company.localeCompare(b.company, "es");
 
+export interface SeatingValidation {
+  /** Empty when `errors` is not. */
+  seating: Map<string, SeatEntry>;
+  /** Line/field/rule messages; never contain values. */
+  errors: string[];
+}
+
+/**
+ * Validates the whole CSV and collects every error instead of throwing (used by
+ * `--dry-run` to hand the full list back to HR). Format and header errors abort
+ * parsing, so they are reported alone.
+ */
+export function validateSeating(csv: string, allowedDomains: string[], pepper: string): SeatingValidation {
+  try {
+    return collectSeating(csv, allowedDomains, pepper);
+  } catch (error) {
+    if (error instanceof ImportError) return { seating: new Map(), errors: [error.message] };
+    throw error;
+  }
+}
+
+/** All-or-nothing: throws an `ImportError` listing every validation error. */
 export function buildSeating(csv: string, allowedDomains: string[], pepper: string): Map<string, SeatEntry> {
+  const { seating, errors } = collectSeating(csv, allowedDomains, pepper);
+  if (errors.length > 0) throw new ImportError(`${errors.length} validation error(s):\n  ${errors.join("\n  ")}`);
+  return seating;
+}
+
+function collectSeating(csv: string, allowedDomains: string[], pepper: string): SeatingValidation {
   const { header, rows } = parseCsv(csv);
   const col = columnIndexes(header);
 
@@ -158,7 +186,7 @@ export function buildSeating(csv: string, allowedDomains: string[], pepper: stri
     }
   }
   if (rows.length === 0) errors.push("no rows found");
-  if (errors.length > 0) throw new ImportError(`${errors.length} validation error(s):\n  ${errors.join("\n  ")}`);
+  if (errors.length > 0) return { seating: new Map(), errors };
 
   const seating = new Map<string, SeatEntry>();
   for (const { digest, table } of attendees) {
@@ -169,7 +197,7 @@ export function buildSeating(csv: string, allowedDomains: string[], pepper: stri
       .sort(byName);
     seating.set(digest, { table, tablemates });
   }
-  return seating;
+  return { seating, errors };
 }
 
 export interface Probe {

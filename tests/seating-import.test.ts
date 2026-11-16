@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { normalizeEmail } from "@/lib/email";
 import { hmacEmail } from "@/server/crypto";
-import { ImportError, buildSeating, sampleProbes } from "@/server/seating-import";
+import { ImportError, buildSeating, sampleProbes, validateSeating } from "@/server/seating-import";
 import { SAMPLE_CSV, TEST_DOMAINS, TEST_PEPPER, csv } from "./helpers";
 
 const build = (content: string) => buildSeating(content, TEST_DOMAINS, TEST_PEPPER);
@@ -188,6 +188,33 @@ describe("Excel CSV format", () => {
   it("rejects content that is not valid UTF-8 without echoing it", () => {
     const message = expectImportError(sc("Luc�a;Secreta;a@nexodigital.example;X;1"), 'line 2: not valid UTF-8 (save as "CSV UTF-8")');
     expect(message).not.toContain("Secreta");
+  });
+});
+
+describe("validateSeating (dry run)", () => {
+  const validate = (content: string) => validateSeating(content, TEST_DOMAINS, TEST_PEPPER);
+
+  it("reports every row error without throwing", () => {
+    const { errors } = validate(csv("A,B,not-an-email,X,1", "A,B,b@nexodigital.example,X,99"));
+    expect(errors).toEqual(["line 2: invalid email", "line 3: table must be 1..50"]);
+  });
+
+  it("returns the seating and no errors for a valid file", () => {
+    const { seating, errors } = validate(SAMPLE_CSV);
+    expect(errors).toEqual([]);
+    expect(seating.size).toBe(2);
+  });
+
+  it("turns header and format errors into a single error", () => {
+    expect(validate("email,table\na@nexodigital.example,1").errors).toEqual([
+      "header must contain: email, table, first_name, last_name, company (missing: first_name, last_name, company)",
+    ]);
+    expect(validate(csv('A,B,"a@nexodigital.example,X,1')).errors).toEqual(["line 2: unterminated quoted field"]);
+  });
+
+  it("never echoes values in errors", () => {
+    const { errors } = validate(csv("Secreta,Persona,secret.person@gmail.com,X,1"));
+    for (const leaked of ["secret.person", "Secreta", "Persona"]) expect(errors.join("\n")).not.toContain(leaked);
   });
 });
 
