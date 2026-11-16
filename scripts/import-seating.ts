@@ -12,7 +12,12 @@
  * the secrets file must define EMAIL_HMAC_PEPPER and ALLOWED_EMAIL_DOMAINS itself, so the
  * development pepper can never fill the gap.
  *
+ * `--dry-run` validates the whole file and prints every error (line, field, rule; never
+ * values) without touching any store, so the list can be handed back to HR. Use it with
+ * `--secrets-file` to validate against the production domains.
+ *
  * Usage:
+ *   npm run seating:import -- --input data/private/seating.csv --dry-run --secrets-file .env.production.local
  *   npm run seating:import -- --input data/private/seating.csv --target memory
  *   npm run seating:import -- --input data/private/seating.csv --target redis \
  *     --secrets-file .env.production.local --expires-at 2026-12-20T23:59:00+01:00
@@ -25,7 +30,7 @@ import { z } from "zod";
 import { EnvSchema } from "../src/server/env-schema";
 import { resolveRedisCredentials } from "../src/server/redis-credentials";
 import type { SeatEntry } from "../src/server/seating-format";
-import { ImportError, buildSeating, sampleProbes } from "../src/server/seating-import";
+import { ImportError, buildSeating, sampleProbes, validateSeating } from "../src/server/seating-import";
 import { publishSeating, type SeatingStoreAdmin } from "../src/server/seating-publish";
 import { VerifyUrlSchema, createHttpVerifier } from "../src/server/seating-verify";
 
@@ -38,6 +43,7 @@ const ArgsSchema = z.object({
   "secrets-file": z.string().min(1).optional(),
   "expires-at": z.iso.datetime({ offset: true }).optional(),
   "verify-url": VerifyUrlSchema.optional(),
+  "dry-run": z.boolean().default(false),
 });
 
 function upstashAdmin(redis: Redis): SeatingStoreAdmin {
@@ -102,6 +108,14 @@ function loadEnvironment(secretsFile: string | undefined): void {
   if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 }
 
+/** Validates without writing anywhere; exit code 1 when the file has errors. */
+function dryRun(csv: string, domains: string[], pepper: string, domainsSource: "secrets-file" | ".env.local"): void {
+  const { seating, errors } = validateSeating(csv, domains, pepper);
+  const tables = new Set([...seating.values()].map((entry) => entry.table)).size;
+  console.log(JSON.stringify({ event: "seating.dry_run", attendees: seating.size, tables, errors, domainsSource }));
+  if (errors.length > 0) process.exitCode = 1;
+}
+
 async function main(): Promise<void> {
   const { values } = parseArgs({
     options: {
@@ -110,6 +124,7 @@ async function main(): Promise<void> {
       "secrets-file": { type: "string" },
       "expires-at": { type: "string" },
       "verify-url": { type: "string" },
+      "dry-run": { type: "boolean" },
     },
   });
   loadEnvironment(values["secrets-file"]);
@@ -119,13 +134,17 @@ async function main(): Promise<void> {
     target: values.target ?? env.SEATING_STORE,
     "verify-url": values["verify-url"] ?? process.env.APP_URL,
   });
+  const csv = readFileSync(args.input, "utf8");
+  if (args["dry-run"]) {
+    dryRun(csv, env.ALLOWED_EMAIL_DOMAINS, env.EMAIL_HMAC_PEPPER, args["secrets-file"] ? "secrets-file" : ".env.local");
+    return;
+  }
   if (args.target === "redis" && !args["secrets-file"]) {
     throw new ImportError(
       "--secrets-file is required for redis: production secrets must not come from .env.local or the command line",
     );
   }
 
-  const csv = readFileSync(args.input, "utf8");
   const seating = buildSeating(csv, env.ALLOWED_EMAIL_DOMAINS, env.EMAIL_HMAC_PEPPER);
   if (args.target === "redis") await writeRedis(csv, seating, args["expires-at"], args["verify-url"]);
   else writeMemory(seating, env.SEATING_MEMORY_FILE);

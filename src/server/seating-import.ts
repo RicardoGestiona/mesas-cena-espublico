@@ -16,14 +16,73 @@ export class ImportError extends Error {}
 export const REQUIRED_COLUMNS = ["email", "table", "first_name", "last_name", "company"] as const;
 type Column = (typeof REQUIRED_COLUMNS)[number];
 
+type Delimiter = "," | ";";
+
+/** U+FFFD appears when a non-UTF-8 file (e.g. Excel "CSV (delimitado por comas)", Windows-1252) is decoded as UTF-8. */
+const REPLACEMENT_CHAR = "�";
+
+/**
+ * Splits one CSV line (RFC 4180 quoting: `"a, b"`, `""` = literal quote; whitespace
+ * around a quoted value is allowed). Quoted values cannot span lines.
+ */
+function splitLine(raw: string, delimiter: Delimiter, line: number): string[] {
+  const cells: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+  let quotedCell = false;
+  for (let i = 0; i < raw.length; i++) {
+    const char = raw[i];
+    if (inQuotes) {
+      if (char !== '"') cell += char;
+      else if (raw[i + 1] === '"') cell += raw[++i];
+      else inQuotes = false;
+    } else if (char === delimiter) {
+      cells.push(cell);
+      cell = "";
+      quotedCell = false;
+    } else if (char === '"' && !quotedCell && cell.trim() === "") {
+      inQuotes = true;
+      quotedCell = true;
+      cell = "";
+    } else {
+      cell += char;
+    }
+  }
+  if (inQuotes) throw new ImportError(`line ${line}: unterminated quoted field`);
+  cells.push(cell);
+  return cells;
+}
+
+const headerCells = (raw: string, delimiter: Delimiter) =>
+  splitLine(raw, delimiter, 1).map((h) => h.trim().toLowerCase());
+
+/**
+ * The delimiter that yields the most required columns, so a header with a renamed
+ * column still reports only that column as missing. Ties fall back to ",".
+ */
+function detectDelimiter(rawHeader: string): Delimiter {
+  const found = (d: Delimiter) => REQUIRED_COLUMNS.filter((c) => headerCells(rawHeader, d).includes(c)).length;
+  return found(";") > found(",") ? ";" : ",";
+}
+
+/**
+ * Parses the seating CSV as exported by Excel: UTF-8 (BOM allowed), `,` or `;`
+ * (detected from the header), RFC 4180 quotes, CRLF, blank or all-empty rows skipped.
+ * Errors name the line, never the value.
+ */
 export function parseCsv(content: string): { header: string[]; rows: { line: number; cells: string[] }[] } {
   const lines = content.replace(/^﻿/, "").split(/\r?\n/);
-  const header = (lines[0] ?? "").split(",").map((h) => h.trim().toLowerCase());
+  lines.forEach((raw, i) => {
+    if (raw.includes(REPLACEMENT_CHAR)) throw new ImportError(`line ${i + 1}: not valid UTF-8 (save as "CSV UTF-8")`);
+  });
+  const delimiter = detectDelimiter(lines[0] ?? "");
+  const header = headerCells(lines[0] ?? "", delimiter);
   const rows: { line: number; cells: string[] }[] = [];
   lines.slice(1).forEach((raw, i) => {
-    if (raw.trim() === "") return;
-    if (raw.includes('"')) throw new ImportError(`line ${i + 2}: quoted fields are not supported`);
-    rows.push({ line: i + 2, cells: raw.split(",") });
+    const line = i + 2;
+    const cells = splitLine(raw, delimiter, line);
+    if (cells.every((cell) => cell.trim() === "")) return;
+    rows.push({ line, cells });
   });
   return { header, rows };
 }
@@ -57,7 +116,35 @@ interface Attendee {
 const byName = (a: Tablemate, b: Tablemate) =>
   a.name.localeCompare(b.name, "es") || a.company.localeCompare(b.company, "es");
 
+export interface SeatingValidation {
+  /** Empty when `errors` is not. */
+  seating: Map<string, SeatEntry>;
+  /** Line/field/rule messages; never contain values. */
+  errors: string[];
+}
+
+/**
+ * Validates the whole CSV and collects every error instead of throwing (used by
+ * `--dry-run` to hand the full list back to HR). Format and header errors abort
+ * parsing, so they are reported alone.
+ */
+export function validateSeating(csv: string, allowedDomains: string[], pepper: string): SeatingValidation {
+  try {
+    return collectSeating(csv, allowedDomains, pepper);
+  } catch (error) {
+    if (error instanceof ImportError) return { seating: new Map(), errors: [error.message] };
+    throw error;
+  }
+}
+
+/** All-or-nothing: throws an `ImportError` listing every validation error. */
 export function buildSeating(csv: string, allowedDomains: string[], pepper: string): Map<string, SeatEntry> {
+  const { seating, errors } = collectSeating(csv, allowedDomains, pepper);
+  if (errors.length > 0) throw new ImportError(`${errors.length} validation error(s):\n  ${errors.join("\n  ")}`);
+  return seating;
+}
+
+function collectSeating(csv: string, allowedDomains: string[], pepper: string): SeatingValidation {
   const { header, rows } = parseCsv(csv);
   const col = columnIndexes(header);
 
@@ -98,7 +185,7 @@ export function buildSeating(csv: string, allowedDomains: string[], pepper: stri
     }
   }
   if (rows.length === 0) errors.push("no rows found");
-  if (errors.length > 0) throw new ImportError(`${errors.length} validation error(s):\n  ${errors.join("\n  ")}`);
+  if (errors.length > 0) return { seating: new Map(), errors };
 
   const seating = new Map<string, SeatEntry>();
   for (const { digest, table } of attendees) {
@@ -109,7 +196,7 @@ export function buildSeating(csv: string, allowedDomains: string[], pepper: stri
       .sort(byName);
     seating.set(digest, { table, tablemates });
   }
-  return seating;
+  return { seating, errors };
 }
 
 export interface Probe {

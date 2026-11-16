@@ -28,6 +28,7 @@ npm test                    # vitest run (all suites)
 npx vitest run tests/lookup.test.ts            # single file
 npx vitest run -t "rate-limits per client IP"  # single test by name
 npm run seating:synthetic   # 500 synthetic attendees + simulated draw -> data/private/attendees.synthetic.csv
+npm run seating:import -- --input <csv> --dry-run --secrets-file .env.production.local   # validate only, lists every error (exit 1)
 npm run seating:import -- --input <csv> --target memory
 npm run seating:import -- --input <csv> --target redis --secrets-file .env.production.local \
   --expires-at 2026-12-20T23:59:00+01:00   # verifies against APP_URL
@@ -68,7 +69,7 @@ Recorrido del dato: `CSV (local)` → `scripts/import-seating.ts` (valida todo o
 
 ## Formato del CSV del sorteo
 
-UTF-8, separado por comas, sin comillas, con cabecera. Columnas obligatorias: `email`, `table`, `first_name`, `last_name`, `company` (se rechazan valores vacíos, de más de 120 caracteres o con caracteres de control o bidi). El resto se ignora. Los datos sintéticos usan dominios ficticios `.example` (RFC 2606).
+Lo prepara RR. HH. en Excel y lo publica Ricardo con el script (no hay panel web: el runtime solo lee). UTF-8 obligatorio (Excel: «CSV UTF-8»; si llega `U+FFFD` se rechaza), con BOM opcional y cabecera. Separador `,` o `;`, detectado por la cabecera. Comillas RFC 4180 (`"Empresa, S.L."`, `""` para una comilla), sin saltos de línea dentro. Las filas vacías (también `;;;;`) se ignoran. Columnas obligatorias, en cualquier orden: `email`, `table`, `first_name`, `last_name`, `company` (se rechazan valores vacíos, de más de 120 caracteres o con caracteres de control o bidi). El resto se ignora. `--dry-run` (`validateSeating`) devuelve todos los errores por línea sin escribir nada. Los datos sintéticos usan dominios ficticios `.example` (RFC 2606).
 
 ## Pendiente
 
