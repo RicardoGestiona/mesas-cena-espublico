@@ -15,7 +15,7 @@ RR. HH. mantiene el listado definitivo y puede cambiarlo hasta la noche de la ce
 ## Objetivos
 
 1. Aceptar el CSV de Excel en español:
-   - Separador `;` o `,`, detectado a partir de la cabecera: se elige el que produzca las 5 columnas obligatorias. Si ambos o ninguno las producen, se rechaza con un error claro.
+   - Separador `;` o `,`, detectado a partir de la cabecera: se elige el que encuentre más columnas obligatorias (empate → `,`), de modo que una columna renombrada se informa sola en el error de cabecera.
    - Comillas estándar (RFC 4180): `"Empresa, S.L."` y `""` para escapar una comilla dentro del valor. Un salto de línea dentro de comillas o unas comillas sin cerrar se rechazan indicando el número de línea.
    - Las filas con todas las celdas vacías (`;;;;`, que Excel añade a menudo) se ignoran como si fueran líneas en blanco.
    - **Detectar ficheros que no están en UTF-8.** Si se guarda como «CSV (delimitado por comas)» en lugar de «CSV UTF-8», los acentos llegan como `U+FFFD`. Hoy se publicarían nombres corruptos sin dar error. Se rechazará el fichero con un mensaje que diga «guarda como CSV UTF-8».

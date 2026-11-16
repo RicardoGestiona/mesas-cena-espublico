@@ -185,6 +185,11 @@ describe("Excel CSV format", () => {
     expectImportError("nombre;apellidos\nA;B", "header must contain");
   });
 
+  it("names only the really missing column when a semicolon header has one renamed", () => {
+    const message = expectImportError("email;table;nombre;last_name;company\na@nexodigital.example;1;A;B;X", "(missing: first_name)");
+    expect(message).not.toContain("missing: email");
+  });
+
   it("rejects content that is not valid UTF-8 without echoing it", () => {
     const message = expectImportError(sc("Luc�a;Secreta;a@nexodigital.example;X;1"), 'line 2: not valid UTF-8 (save as "CSV UTF-8")');
     expect(message).not.toContain("Secreta");

@@ -16,8 +16,7 @@ export class ImportError extends Error {}
 export const REQUIRED_COLUMNS = ["email", "table", "first_name", "last_name", "company"] as const;
 type Column = (typeof REQUIRED_COLUMNS)[number];
 
-const DELIMITERS = [",", ";"] as const;
-type Delimiter = (typeof DELIMITERS)[number];
+type Delimiter = "," | ";";
 
 /** U+FFFD appears when a non-UTF-8 file (e.g. Excel "CSV (delimitado por comas)", Windows-1252) is decoded as UTF-8. */
 const REPLACEMENT_CHAR = "�";
@@ -57,13 +56,13 @@ function splitLine(raw: string, delimiter: Delimiter, line: number): string[] {
 const headerCells = (raw: string, delimiter: Delimiter) =>
   splitLine(raw, delimiter, 1).map((h) => h.trim().toLowerCase());
 
-/** The delimiter that yields every required column; ambiguous or none falls back to "," (header error follows). */
+/**
+ * The delimiter that yields the most required columns, so a header with a renamed
+ * column still reports only that column as missing. Ties fall back to ",".
+ */
 function detectDelimiter(rawHeader: string): Delimiter {
-  const matches = DELIMITERS.filter((d) => {
-    const header = headerCells(rawHeader, d);
-    return REQUIRED_COLUMNS.every((c) => header.includes(c));
-  });
-  return matches.length === 1 ? matches[0] : ",";
+  const found = (d: Delimiter) => REQUIRED_COLUMNS.filter((c) => headerCells(rawHeader, d).includes(c)).length;
+  return found(";") > found(",") ? ";" : ",";
 }
 
 /**
