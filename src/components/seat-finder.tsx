@@ -41,6 +41,11 @@ const MESSAGES = {
   error: "Algo ha fallado. Inténtalo de nuevo en unos segundos.",
 } as const;
 
+/** Ends a sentence without doubling the period of names like "S.A.". */
+function withPeriod(text: string): string {
+  return text.endsWith(".") ? text : `${text}.`;
+}
+
 // Acute, grave, circumflex and diaeresis; the tilde (U+0303) is kept so "Ñ" survives.
 const VOWEL_ACCENTS = /[\u0300\u0301\u0302\u0308]/g;
 
@@ -319,9 +324,9 @@ export function SeatFinder() {
           <div className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
             <LockKeyhole className="mt-0.5 size-3.5 shrink-0" aria-hidden />
             <p id={noticeId}>
-              Para mostrarte tu mesa usamos tu email corporativo, que no guardamos en claro. Verás tu número de mesa y el
+              Para mostrarte tu mesa usamos tu email corporativo, que guardamos de forma irreversible (seudonimizado), nunca legible. Verás tu número de mesa y el
               nombre, apellidos y empresa de tus compañeros de mesa, y ellos verán los tuyos. Los datos se borran
-              automáticamente el {PRIVACY_NOTICE.deletionDate}. Responsable: {PRIVACY_NOTICE.controller}. Puedes ejercer
+              automáticamente el {PRIVACY_NOTICE.deletionDate}. Responsable: {withPeriod(PRIVACY_NOTICE.controller)} Puedes ejercer
               tus derechos u oponerte a que se muestre tu nombre en{" "}
               <a
                 href={`mailto:${PRIVACY_NOTICE.rightsContactEmail}`}
