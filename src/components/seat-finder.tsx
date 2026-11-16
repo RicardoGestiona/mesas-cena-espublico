@@ -324,7 +324,7 @@ export function SeatFinder() {
           <div className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
             <LockKeyhole className="mt-0.5 size-3.5 shrink-0" aria-hidden />
             <p id={noticeId}>
-              Para mostrarte tu mesa usamos tu email corporativo, que guardamos de forma irreversible (seudonimizado), nunca legible. Verás tu número de mesa y el
+              Para mostrarte tu mesa usamos tu email corporativo, que no guardamos. Verás tu número de mesa y el
               nombre, apellidos y empresa de tus compañeros de mesa, y ellos verán los tuyos. Los datos se borran
               automáticamente el {PRIVACY_NOTICE.deletionDate}. Responsable: {withPeriod(PRIVACY_NOTICE.controller)} Puedes ejercer
               tus derechos u oponerte a que se muestre tu nombre en{" "}
