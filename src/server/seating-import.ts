@@ -16,14 +16,74 @@ export class ImportError extends Error {}
 export const REQUIRED_COLUMNS = ["email", "table", "first_name", "last_name", "company"] as const;
 type Column = (typeof REQUIRED_COLUMNS)[number];
 
+const DELIMITERS = [",", ";"] as const;
+type Delimiter = (typeof DELIMITERS)[number];
+
+/** U+FFFD appears when a non-UTF-8 file (e.g. Excel "CSV (delimitado por comas)", Windows-1252) is decoded as UTF-8. */
+const REPLACEMENT_CHAR = "�";
+
+/**
+ * Splits one CSV line (RFC 4180 quoting: `"a, b"`, `""` = literal quote; whitespace
+ * around a quoted value is allowed). Quoted values cannot span lines.
+ */
+function splitLine(raw: string, delimiter: Delimiter, line: number): string[] {
+  const cells: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+  let quotedCell = false;
+  for (let i = 0; i < raw.length; i++) {
+    const char = raw[i];
+    if (inQuotes) {
+      if (char !== '"') cell += char;
+      else if (raw[i + 1] === '"') cell += raw[++i];
+      else inQuotes = false;
+    } else if (char === delimiter) {
+      cells.push(cell);
+      cell = "";
+      quotedCell = false;
+    } else if (char === '"' && !quotedCell && cell.trim() === "") {
+      inQuotes = true;
+      quotedCell = true;
+      cell = "";
+    } else {
+      cell += char;
+    }
+  }
+  if (inQuotes) throw new ImportError(`line ${line}: unterminated quoted field`);
+  cells.push(cell);
+  return cells;
+}
+
+const headerCells = (raw: string, delimiter: Delimiter) =>
+  splitLine(raw, delimiter, 1).map((h) => h.trim().toLowerCase());
+
+/** The delimiter that yields every required column; ambiguous or none falls back to "," (header error follows). */
+function detectDelimiter(rawHeader: string): Delimiter {
+  const matches = DELIMITERS.filter((d) => {
+    const header = headerCells(rawHeader, d);
+    return REQUIRED_COLUMNS.every((c) => header.includes(c));
+  });
+  return matches.length === 1 ? matches[0] : ",";
+}
+
+/**
+ * Parses the seating CSV as exported by Excel: UTF-8 (BOM allowed), `,` or `;`
+ * (detected from the header), RFC 4180 quotes, CRLF, blank or all-empty rows skipped.
+ * Errors name the line, never the value.
+ */
 export function parseCsv(content: string): { header: string[]; rows: { line: number; cells: string[] }[] } {
   const lines = content.replace(/^﻿/, "").split(/\r?\n/);
-  const header = (lines[0] ?? "").split(",").map((h) => h.trim().toLowerCase());
+  lines.forEach((raw, i) => {
+    if (raw.includes(REPLACEMENT_CHAR)) throw new ImportError(`line ${i + 1}: not valid UTF-8 (save as "CSV UTF-8")`);
+  });
+  const delimiter = detectDelimiter(lines[0] ?? "");
+  const header = headerCells(lines[0] ?? "", delimiter);
   const rows: { line: number; cells: string[] }[] = [];
   lines.slice(1).forEach((raw, i) => {
-    if (raw.trim() === "") return;
-    if (raw.includes('"')) throw new ImportError(`line ${i + 2}: quoted fields are not supported`);
-    rows.push({ line: i + 2, cells: raw.split(",") });
+    const line = i + 2;
+    const cells = splitLine(raw, delimiter, line);
+    if (cells.every((cell) => cell.trim() === "")) return;
+    rows.push({ line, cells });
   });
   return { header, rows };
 }

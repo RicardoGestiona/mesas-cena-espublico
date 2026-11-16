@@ -79,10 +79,6 @@ describe("buildSeating", () => {
     expectImportError("email,table\na@nexodigital.example,1", "missing: first_name, last_name, company");
   });
 
-  it("rejects quoted fields", () => {
-    expectImportError('first_name,last_name,email,company,table\nA,B,"a@nexodigital.example",X,1', "line 2: quoted fields");
-  });
-
   it("aborts the whole import listing every invalid line", () => {
     expectImportError(
       csv(
@@ -127,6 +123,71 @@ describe("buildSeating", () => {
   it("never echoes emails or names in error messages", () => {
     const message = expectImportError(csv("Secreta,Persona,secret.person@gmail.com,X,1", `Nombre\u0007Raro,B,c@nexodigital.example,X,1`));
     for (const leaked of ["secret.person", "Secreta", "Persona", "Nombre"]) expect(message).not.toContain(leaked);
+  });
+});
+
+describe("Excel CSV format", () => {
+  const HEADER_SC = "first_name;last_name;email;company;table";
+  const sc = (...rows: string[]) => [HEADER_SC, ...rows].join("\n");
+  const matesOf = (content: string, email: string) => build(content).get(digest(email))?.tablemates;
+
+  it("accepts semicolon-separated files", () => {
+    const seating = build(SAMPLE_CSV.replaceAll(",", ";"));
+    expect([...seating.keys()].sort()).toEqual([...build(SAMPLE_CSV).keys()].sort());
+  });
+
+  it("accepts quoted values containing delimiters and escaped quotes", () => {
+    expect(matesOf(csv('A,B,a@nexodigital.example,"Nexo, S.L.",1', "C,D,c@nexodigital.example,X,1"), "c@nexodigital.example")).toEqual([
+      { name: "A B", company: "Nexo, S.L." },
+    ]);
+    expect(matesOf(sc('A;B;a@nexodigital.example;"Nexo ""Digital""; SA";1', "C;D;c@nexodigital.example;X;1"), "c@nexodigital.example")).toEqual([
+      { name: "A B", company: 'Nexo "Digital"; SA' },
+    ]);
+  });
+
+  it("accepts a quoted email", () => {
+    expect(build(sc('A;B;"lucia.garcia@nexodigital.example";X;3')).get(digest("lucia.garcia@nexodigital.example"))?.table).toBe(3);
+  });
+
+  it("keeps an unquoted comma as text in a semicolon file", () => {
+    expect(matesOf(sc("A;B;a@nexodigital.example;Nexo, S.L.;1", "C;D;c@nexodigital.example;X;1"), "c@nexodigital.example")).toEqual([
+      { name: "A B", company: "Nexo, S.L." },
+    ]);
+  });
+
+  it("accepts whitespace around a quoted value", () => {
+    expect(matesOf(sc('A;B;a@nexodigital.example; "Nexo; SL" ;1', "C;D;c@nexodigital.example;X;1"), "c@nexodigital.example")).toEqual([
+      { name: "A B", company: "Nexo; SL" },
+    ]);
+  });
+
+  it("skips rows whose cells are all empty and trailing empty columns", () => {
+    const content = `${sc("A;B;a@nexodigital.example;X;1;;", "C;D;c@nexodigital.example;Y;2;;")}\n;;;;\n;;;;;;\n`;
+    expect(build(content).size).toBe(2);
+  });
+
+  it("strips the BOM with a semicolon header", () => {
+    expect(build(`﻿${sc("A;B;a@nexodigital.example;X;1")}`).size).toBe(1);
+  });
+
+  it("handles CRLF with a quoted last cell", () => {
+    const content = 'first_name;last_name;email;table;company\r\nA;B;a@nexodigital.example;1;"Nexo; SL"\r\nC;D;c@nexodigital.example;1;"Atria"\r\n';
+    const companies = [...build(content).values()].flatMap((e) => e.tablemates.map((m) => m.company));
+    expect(companies.sort()).toEqual(["Atria", "Nexo; SL"]);
+  });
+
+  it("rejects unterminated quoted fields", () => {
+    expectImportError(sc('A;B;a@nexodigital.example;"Nexo;1'), "line 2: unterminated quoted field");
+  });
+
+  it("rejects a header whose delimiter cannot be determined", () => {
+    expectImportError("email;table,first_name,last_name,company\nx", "header must contain");
+    expectImportError("nombre;apellidos\nA;B", "header must contain");
+  });
+
+  it("rejects content that is not valid UTF-8 without echoing it", () => {
+    const message = expectImportError(sc("Luc�a;Secreta;a@nexodigital.example;X;1"), 'line 2: not valid UTF-8 (save as "CSV UTF-8")');
+    expect(message).not.toContain("Secreta");
   });
 });
 
